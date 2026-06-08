@@ -1,0 +1,35 @@
+# Secrets
+.env
+.env.local
+*.key
+*.pem
+credentials/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Editor
+.vscode/
+.idea/
+*.iml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Temp
+tmp/
+*.tmp
+*.bak
+*~
