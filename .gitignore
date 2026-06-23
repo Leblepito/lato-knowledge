@@ -33,3 +33,9 @@ tmp/
 *.tmp
 *.bak
 *~
+
+# Çeviri sistemi — runtime data
+ceviri-sistemi/data/
+ceviri-sistemi/**/*.ogg
+ceviri-sistemi/**/*.wav
+ceviri-sistemi/**/*.mp3
