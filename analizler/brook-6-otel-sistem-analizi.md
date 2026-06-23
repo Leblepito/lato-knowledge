@@ -121,17 +121,26 @@ Her yabancı misafir için 24 saat içinde bildirim zorunlu. Ceza: 1,600 THB/ihl
 
 ## 📱 Mobile Application Roadmap (Android + iOS)
 
-### Faz 1: Yönetim Dashboard (Month 1-2)
+### Faz 1: LINE + Telegram Bot Ağı (Mevcut — Month 0)
+```
+LINE Bot (personel) ←→ AI sınıflandırma ←→ Telegram (yönetim)
+├── Text mesaj → departman yönlendirme
+├── Fatura foto → OCR → mutabakat
+├── Voice mesaj → çeviri + yönetim
+└── Çok dilli (TR/TH/EN)
+```
+
+### Faz 2: Yönetim Dashboard (Month 1-2)
 ```
 React Native / Flutter
 ├── Multi-hotel dashboard (7 otel)
 ├── Real-time KPI (doluluk, gelir, RevPAR)
 ├── Push notifications (TM30, WP, ödeme)
 ├── Fatura foto → OCR → mutabakat
-└── Telegram bağlantısı (mevcut)
+└── Telegram + LINE bağlantısı (mevcut)
 ```
 
-### Faz 2: Operasyon (Month 3-4)
+### Faz 3: Operasyon (Month 3-4)
 ```
 ├── Personel görev atama & takip
 ├── Bakım talebi (foto + açıklama)
@@ -140,7 +149,7 @@ React Native / Flutter
 └── Çok dilli çeviri (mevcut sistem entegre)
 ```
 
-### Faz 3: Misafir Deneyimi (Month 5-6)
+### Faz 4: Misafir Deneyimi (Month 5-6)
 ```
 ├── Self check-in (QR kod)
 ├── Oda servisi siparişi

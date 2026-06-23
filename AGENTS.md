@@ -67,12 +67,22 @@ Skill yazımında [superpowers](https://github.com/obra/superpowers) ve [karpath
 Excel analizine dayalı otomatik bildirim ve takip sistemleri.
 
 - **Günlük Bülten**: Her sabah doluluk, gelir, kritik görevler
-- **TM30 Alert**: Yabancı misafir bildirim hatırlatma
+- **TM30 Alert**: Yabancı misafir bildirim hatırlatması
 - **Work Permit**: WP bitişine 30/15/7 gün kala uyarı
 - **Vergi Hatırlatma**: VAT PP30, SSO, bordro deadline'ları
 - **Acente Ödeme**: Vade takibi + gecikme bildirimi
 - **Fatura OCR**: Fatura fotoğrafı → OCR → mutabakat kontrolü
 - **Detay**: `otomasyon-modulleri/README.md`, `analizler/brook-6-otel-sistem-analizi.md`
+
+## LINE Bot (Personel İletişimi)
+
+Tayland personeli LINE kullanır. Bu bot LINE → Telegram köprüsü kurar.
+
+- **AI Sınıflandırma**: Her mesajı otomatik tip/departman/öncelik analizi
+- **Fatura OCR**: LINE'dan fatura foto → Gemini OCR → Telegram mutabakat
+- **Departman Routing**: Mesaj içeriğine göre doğru Telegram topic'e yönlendirme
+- **Çok Dilli**: TR/TH/EN otomatik çeviri
+- **Detay**: `line-bot/README.md`
 
 ## Bilgi Bankası
 
@@ -89,6 +99,9 @@ lato-knowledge/
 │   ├── docker/                → Dockerfile, compose, requirements
 │   ├── rehber/                → ses kaydı rehberi (TR/EN/TH)
 │   └── docs/                  → deploy script, caddy config
+├── line-bot/                  → LINE Messaging API bot (personel)
+│   ├── src/line_bot.py        → webhook + AI sınıflandırma + OCR
+│   └── Dockerfile
 ├── otomasyon-modulleri/       → otel otomasyon botları
 │   ├── daily_briefing.py      → günlük bülten + WP/VAT/SSO alert
 │   └── data/hotel_db.json     → 7 otel veritabanı (Excel export)
