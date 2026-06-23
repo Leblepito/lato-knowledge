@@ -1,0 +1,174 @@
+{
+  "_comment": "Bu dosya Excel HOTEL_DB'den export edilir. Yapı bu formata uymalı.",
+  "_export_guide": "Excel'den JSON'a çevirme: analizler/brook-6-otel-sistem-analizi.md'ye bak",
+
+  "hotels": [
+    {
+      "id": 1,
+      "name": "The Natural Resort",
+      "stars": "4★",
+      "rooms": 294,
+      "location": "Phuket",
+      "personnel": 85,
+      "monthly_personnel_cost": 1450000,
+      "elektraweb_id": null,
+      "occupancy_today": 0.54,
+      "revenue_today": 408449
+    },
+    {
+      "id": 2,
+      "name": "Trend Kamala",
+      "stars": "4★",
+      "rooms": 124,
+      "location": "Kamala, Phuket",
+      "personnel": 42,
+      "monthly_personnel_cost": 680000,
+      "elektraweb_id": null,
+      "occupancy_today": 0.52,
+      "revenue_today": 146722
+    },
+    {
+      "id": 3,
+      "name": "In On The Beach",
+      "stars": "4★",
+      "rooms": 55,
+      "location": "Phuket",
+      "personnel": 28,
+      "monthly_personnel_cost": 480000,
+      "elektraweb_id": null,
+      "occupancy_today": 0.58,
+      "revenue_today": 100482
+    },
+    {
+      "id": 4,
+      "name": "The Phulin Otel",
+      "stars": "4★",
+      "rooms": 106,
+      "location": "Phuket",
+      "personnel": 38,
+      "monthly_personnel_cost": 620000,
+      "elektraweb_id": null,
+      "occupancy_today": 0.50,
+      "revenue_today": 108846
+    },
+    {
+      "id": 5,
+      "name": "Adema Karon",
+      "stars": "3★",
+      "rooms": 29,
+      "location": "Karon, Phuket",
+      "personnel": 15,
+      "monthly_personnel_cost": 240000,
+      "elektraweb_id": null,
+      "occupancy_today": 0.52,
+      "revenue_today": 23853
+    },
+    {
+      "id": 6,
+      "name": "Case Del Sol",
+      "stars": "3★",
+      "rooms": 180,
+      "location": "Phuket",
+      "personnel": 58,
+      "monthly_personnel_cost": 920000,
+      "elektraweb_id": null,
+      "occupancy_today": 0.48,
+      "revenue_today": 139564
+    },
+    {
+      "id": 7,
+      "name": "The Brook Pool Resort",
+      "stars": "3★",
+      "rooms": 31,
+      "location": "Chalong, Phuket",
+      "personnel": 19,
+      "monthly_personnel_cost": 383000,
+      "elektraweb_id": 101027,
+      "occupancy_today": 1.0,
+      "revenue_today": 30302
+    }
+  ],
+
+  "monthly_data": {
+    "_comment": "Otel bazlı aylık doluluk/ADR/gelir — Excel HOTEL_DB R11+",
+    "1": {
+      "OCA": {"season": "HIGH", "occupancy": 0.80, "adr": 2425},
+      "SUB": {"season": "HIGH", "occupancy": 0.85, "adr": 2425},
+      "MAR": {"season": "HIGH", "occupancy": 0.75, "adr": 2425}
+    }
+  },
+
+  "staff": [
+    {
+      "name": "Genel Mudur",
+      "department": "Yonetim",
+      "position": "Genel Mudur",
+      "nationality": "TR",
+      "salary": 65000,
+      "hotel": "The Brook Pool Resort",
+      "wp_expiry": null,
+      "wp_required": false
+    },
+    {
+      "name": "FD Muduru",
+      "department": "Front Desk",
+      "position": "FD Muduru",
+      "nationality": "TH",
+      "salary": 28000,
+      "hotel": "The Brook Pool Resort",
+      "wp_expiry": null,
+      "wp_required": false
+    },
+    {
+      "name": "HK Muduru",
+      "department": "Housekeeping",
+      "position": "HK Muduru",
+      "nationality": "MY",
+      "salary": 22000,
+      "hotel": "The Brook Pool Resort",
+      "wp_expiry": "2026-09-15",
+      "wp_required": true
+    },
+    {
+      "name": "Oda Temizlik 1",
+      "department": "Housekeeping",
+      "position": "Oda Temizlik",
+      "nationality": "MY",
+      "salary": 12000,
+      "hotel": "The Brook Pool Resort",
+      "wp_expiry": "2026-09-15",
+      "wp_required": true
+    }
+  ],
+
+  "agencies": [
+    {"name": "Pegas Touristik", "type": "TA", "country": "Rusya", "commission_pct": 0.12, "monthly_revenue": 85000, "commission_thb": 10200, "payment_status": "Odendi"},
+    {"name": "Anex Tour", "type": "TA", "country": "Turkiye/Rusya", "commission_pct": 0.14, "monthly_revenue": 72000, "commission_thb": 10080, "payment_status": "Odendi"},
+    {"name": "TUI Group", "type": "TA", "country": "Avrupa", "commission_pct": 0.15, "monthly_revenue": 56000, "commission_thb": 8400, "payment_status": "Beklemede"},
+    {"name": "Coral Travel", "type": "TA", "country": "Rusya/CIS", "commission_pct": 0.13, "monthly_revenue": 62000, "commission_thb": 8060, "payment_status": "Odendi"},
+    {"name": "Sunmar Tour", "type": "TA", "country": "Rusya", "commission_pct": 0.12, "monthly_revenue": 38000, "commission_thb": 4560, "payment_status": "Gecikti"},
+    {"name": "Booking.com", "type": "OTA", "country": "Global", "commission_pct": 0.15, "monthly_revenue": 165000, "commission_thb": 24750, "payment_status": "VCC Odeme"},
+    {"name": "Expedia", "type": "OTA", "country": "Global", "commission_pct": 0.18, "monthly_revenue": 96000, "commission_thb": 17280, "payment_status": "VCC Odeme"},
+    {"name": "Agoda", "type": "OTA", "country": "APAC", "commission_pct": 0.15, "monthly_revenue": 110000, "commission_thb": 16500, "payment_status": "VCC Odeme"},
+    {"name": "Hotels.com", "type": "OTA", "country": "Global", "commission_pct": 0.20, "monthly_revenue": 0, "commission_thb": 0, "payment_status": "Beklemede"}
+  ],
+
+  "operations": [
+    {"task": "Otel Isletme Lisansi Yenileme", "priority": "KRITIK", "status": "Beklemede", "deadline": "Ocak 31", "authority": "Phuket Provincial Office"},
+    {"task": "Yangin Guvenligi Sertifikasi", "priority": "KRITIK", "status": "Beklemede", "deadline": "Haziran", "authority": "Fire Prevention Bureau"},
+    {"task": "Sigorta Policeleri Yenileme", "priority": "KRITIK", "status": "Aktif", "deadline": "Ocak", "authority": "Allianz / AXA"},
+    {"task": "VAT PP30 Beyani", "priority": "NORMAL", "status": "Periyodik", "deadline": "Her ay 15'i", "authority": "Revenue Department"},
+    {"task": "SSO Bildirimi", "priority": "NORMAL", "status": "Periyodik", "deadline": "Her ay 15'i", "authority": "Social Security Office"},
+    {"task": "OTA Komisyon Mutabakati", "priority": "NORMAL", "status": "Periyodik", "deadline": "Her ay 20'si", "authority": "Booking/Expedia/Agoda"},
+    {"task": "Personel Bordro Hazirligi", "priority": "YUKSEK", "status": "Periyodik", "deadline": "Her ay 25'i", "authority": "Otel Yonetimi"}
+  ],
+
+  "suppliers": [
+    {"name": "Asansor Bakim", "category": "Teknik", "monthly_cost": null, "contract_expiry": null},
+    {"name": "Havuz Kimyasal", "category": "Teknik", "monthly_cost": null, "contract_expiry": null},
+    {"name": "CCTV Sistem", "category": "Guvenlik", "monthly_cost": null, "contract_expiry": null},
+    {"name": "Camasirhane (Laguna)", "category": "HK", "monthly_cost": 12000, "contract_expiry": null},
+    {"name": "Internet/WiFi", "category": "IT", "monthly_cost": null, "contract_expiry": null},
+    {"name": "Jenerator/Elektrik", "category": "Teknik", "monthly_cost": null, "contract_expiry": null}
+  ]
+}

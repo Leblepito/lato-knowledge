@@ -62,6 +62,18 @@ Skill yazımında [superpowers](https://github.com/obra/superpowers) ve [karpath
 - **URL**: `translate.178-104-122-91.nip.io`
 - **Detay**: `ceviri-sistemi/README.md`
 
+## Otel Otomasyon Modülleri
+
+Excel analizine dayalı otomatik bildirim ve takip sistemleri.
+
+- **Günlük Bülten**: Her sabah doluluk, gelir, kritik görevler
+- **TM30 Alert**: Yabancı misafir bildirim hatırlatma
+- **Work Permit**: WP bitişine 30/15/7 gün kala uyarı
+- **Vergi Hatırlatma**: VAT PP30, SSO, bordro deadline'ları
+- **Acente Ödeme**: Vade takibi + gecikme bildirimi
+- **Fatura OCR**: Fatura fotoğrafı → OCR → mutabakat kontrolü
+- **Detay**: `otomasyon-modulleri/README.md`, `analizler/brook-6-otel-sistem-analizi.md`
+
 ## Bilgi Bankası
 
 ```
@@ -77,6 +89,11 @@ lato-knowledge/
 │   ├── docker/                → Dockerfile, compose, requirements
 │   ├── rehber/                → ses kaydı rehberi (TR/EN/TH)
 │   └── docs/                  → deploy script, caddy config
+├── otomasyon-modulleri/       → otel otomasyon botları
+│   ├── daily_briefing.py      → günlük bülten + WP/VAT/SSO alert
+│   └── data/hotel_db.json     → 7 otel veritabanı (Excel export)
+├── analizler/                 → sistem analiz raporları
+│   └── brook-6-otel-sistem-analizi.md → 22 sheet analiz + yol haritası
 └── NOTION-CROSSREF.md
 ```
 
