@@ -38,6 +38,10 @@ TOPIC_ID = config.TRANSLATION_TOPIC_ID
 HTTP_PORT = 8088
 ADMIN_USER_IDS = {6756699467}
 pending_registrations = {}
+# Corrections log path
+CORRECTIONS_LOG = Path("/app/data/corrections_log.json")
+if not CORRECTIONS_LOG.exists():
+    CORRECTIONS_LOG.write_text("[]", encoding="utf-8")
 
 if not BOT_TOKEN:
     logger.error("❌ TRANSLATE_BOT_TOKEN yok!")
@@ -122,6 +126,25 @@ async def send_tts(result, thread_id):
                 file_field="voice", file_path=ogg)
         except Exception as e:
             logger.error(f"TTS [{l}]: {e}")
+
+
+# ── Corrections logging ─────────────────────────────────────────
+async def _log_correction(speaker, wrong, right):
+    """Log correction to JSON file (persisted in volume)."""
+    try:
+        import json
+        entry = {
+            "speaker": speaker,
+            "wrong": wrong,
+            "right": right,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+        data = json.loads(CORRECTIONS_LOG.read_text("utf-8"))
+        data.append(entry)
+        CORRECTIONS_LOG.write_text(json.dumps(data, ensure_ascii=False, indent=2), "utf-8")
+        logger.info(f"📝 Correction logged: {wrong} → {right} ({speaker})")
+    except Exception as e:
+        logger.error(f"Log correction: {e}")
 
 async def run_whisper(audio_path, lang_hint=None):
     loop = asyncio.get_event_loop()
@@ -556,7 +579,10 @@ async def handle_command(msg):
         sp = get_speaker_by_telegram_id(sender_id) or sender_name
         add_correction(sp, wrong.strip(), right.strip())
         await tg("sendMessage", chat_id=chat_id, message_thread_id=thread_id,
-            text=f"✅ Düzeltme kaydedildi: **{sp}** için\n`{wrong.strip()}` → `{right.strip()}`")
+            text=f"✅ Düzeltme kaydedildi: **{sp}** için\n`{wrong.strip()}` → `{right.strip()}`\n\n📝 Bu düzeltme kalıcı kaydedildi. Bir daha aynı hatayı yapmam.")
+
+        # Arkada repo'ya commit et (Railway/Supabase'a gitsin) — async task
+        asyncio.create_task(_log_correction(sp, wrong.strip(), right.strip()))
 
 
 # ── Telegram polling ──────────────────────────────────────────────
