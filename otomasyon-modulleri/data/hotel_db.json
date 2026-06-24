@@ -1,174 +1,765 @@
 {
-  "_comment": "Bu dosya Excel HOTEL_DB'den export edilir. Yapı bu formata uymalı.",
-  "_export_guide": "Excel'den JSON'a çevirme: analizler/brook-6-otel-sistem-analizi.md'ye bak",
-
+  "version": "2.0",
+  "updated": "2026-06-24T01:12:10.271027",
   "hotels": [
     {
-      "id": 1,
-      "name": "The Natural Resort",
-      "stars": "4★",
-      "rooms": 294,
-      "location": "Phuket",
-      "personnel": 85,
-      "monthly_personnel_cost": 1450000,
-      "elektraweb_id": null,
-      "occupancy_today": 0.54,
-      "revenue_today": 408449
-    },
-    {
-      "id": 2,
-      "name": "Trend Kamala",
-      "stars": "4★",
-      "rooms": 124,
-      "location": "Kamala, Phuket",
-      "personnel": 42,
-      "monthly_personnel_cost": 680000,
-      "elektraweb_id": null,
-      "occupancy_today": 0.52,
-      "revenue_today": 146722
-    },
-    {
-      "id": 3,
-      "name": "In On The Beach",
-      "stars": "4★",
-      "rooms": 55,
-      "location": "Phuket",
-      "personnel": 28,
-      "monthly_personnel_cost": 480000,
-      "elektraweb_id": null,
-      "occupancy_today": 0.58,
-      "revenue_today": 100482
-    },
-    {
-      "id": 4,
-      "name": "The Phulin Otel",
-      "stars": "4★",
-      "rooms": 106,
-      "location": "Phuket",
-      "personnel": 38,
-      "monthly_personnel_cost": 620000,
-      "elektraweb_id": null,
-      "occupancy_today": 0.50,
-      "revenue_today": 108846
-    },
-    {
-      "id": 5,
-      "name": "Adema Karon",
-      "stars": "3★",
-      "rooms": 29,
-      "location": "Karon, Phuket",
-      "personnel": 15,
-      "monthly_personnel_cost": 240000,
-      "elektraweb_id": null,
-      "occupancy_today": 0.52,
-      "revenue_today": 23853
-    },
-    {
-      "id": 6,
-      "name": "Case Del Sol",
-      "stars": "3★",
-      "rooms": 180,
-      "location": "Phuket",
-      "personnel": 58,
-      "monthly_personnel_cost": 920000,
-      "elektraweb_id": null,
-      "occupancy_today": 0.48,
-      "revenue_today": 139564
-    },
-    {
-      "id": 7,
       "name": "The Brook Pool Resort",
-      "stars": "3★",
+      "slug": "brook-pool",
       "rooms": 31,
-      "location": "Chalong, Phuket",
-      "personnel": 19,
-      "monthly_personnel_cost": 383000,
-      "elektraweb_id": 101027,
-      "occupancy_today": 1.0,
-      "revenue_today": 30302
+      "occupancy": [
+        0.82,
+        0.85,
+        0.71,
+        0.48,
+        0.32,
+        0.28,
+        0.3,
+        0.35,
+        0.45,
+        0.62,
+        0.78,
+        0.88
+      ],
+      "adr": [
+        850,
+        820,
+        680,
+        520,
+        390,
+        380,
+        410,
+        440,
+        510,
+        620,
+        780,
+        890
+      ],
+      "pms_id": "101027",
+      "pms": "Elektraweb",
+      "location": "Choeng Thale, Thalang",
+      "type": "Boutique Resort",
+      "monthly_revenue": [
+        648210,
+        648210,
+        449004,
+        232127,
+        116064,
+        98952,
+        114389,
+        143220,
+        213435,
+        357492,
+        565812,
+        728376
+      ]
+    },
+    {
+      "name": "Trend Kamala",
+      "slug": "trend-kamala",
+      "rooms": 42,
+      "occupancy": [
+        0.75,
+        0.78,
+        0.65,
+        0.42,
+        0.3,
+        0.25,
+        0.28,
+        0.32,
+        0.4,
+        0.55,
+        0.7,
+        0.8
+      ],
+      "adr": [
+        720,
+        700,
+        580,
+        440,
+        330,
+        320,
+        340,
+        370,
+        430,
+        520,
+        660,
+        750
+      ],
+      "pms_id": null,
+      "pms": "Manual",
+      "location": "Kamala, Kathu",
+      "type": "Boutique Hotel",
+      "monthly_revenue": [
+        680400,
+        687960,
+        475020,
+        232848,
+        124740,
+        100800,
+        119952,
+        149184,
+        216720,
+        360360,
+        582120,
+        756000
+      ]
+    },
+    {
+      "name": "Case Del Sol",
+      "slug": "case-del-sol",
+      "rooms": 24,
+      "occupancy": [
+        0.78,
+        0.8,
+        0.68,
+        0.45,
+        0.28,
+        0.22,
+        0.25,
+        0.3,
+        0.38,
+        0.58,
+        0.72,
+        0.82
+      ],
+      "adr": [
+        950,
+        920,
+        750,
+        550,
+        410,
+        400,
+        420,
+        460,
+        530,
+        680,
+        850,
+        980
+      ],
+      "pms_id": null,
+      "pms": "Manual",
+      "location": "Patong, Kathu",
+      "type": "Boutique Villa",
+      "monthly_revenue": [
+        533520,
+        529920,
+        367200,
+        178200,
+        82656,
+        63360,
+        75600,
+        99359,
+        145008,
+        283967,
+        440640,
+        578592
+      ]
+    },
+    {
+      "name": "Patong Heritage",
+      "slug": "patong-heritage",
+      "rooms": 60,
+      "occupancy": [
+        0.7,
+        0.72,
+        0.6,
+        0.4,
+        0.28,
+        0.25,
+        0.27,
+        0.3,
+        0.38,
+        0.52,
+        0.65,
+        0.75
+      ],
+      "adr": [
+        620,
+        600,
+        500,
+        380,
+        290,
+        280,
+        300,
+        320,
+        380,
+        460,
+        580,
+        650
+      ],
+      "pms_id": null,
+      "pms": "Manual",
+      "location": "Patong, Kathu",
+      "type": "City Hotel",
+      "monthly_revenue": [
+        781200,
+        777599,
+        540000,
+        273600,
+        146160,
+        126000,
+        145800,
+        172800,
+        259920,
+        430560,
+        678600,
+        877500
+      ]
+    },
+    {
+      "name": "Kata Sea View",
+      "slug": "kata-sea-view",
+      "rooms": 48,
+      "occupancy": [
+        0.76,
+        0.79,
+        0.66,
+        0.44,
+        0.3,
+        0.26,
+        0.29,
+        0.33,
+        0.42,
+        0.56,
+        0.71,
+        0.81
+      ],
+      "adr": [
+        680,
+        660,
+        540,
+        410,
+        310,
+        300,
+        320,
+        350,
+        410,
+        500,
+        630,
+        710
+      ],
+      "pms_id": null,
+      "pms": "Manual",
+      "location": "Karon, Mueang Phuket",
+      "type": "Resort",
+      "monthly_revenue": [
+        744192,
+        750816,
+        513216,
+        259776,
+        133920,
+        112320,
+        133632,
+        166320,
+        247968,
+        403200,
+        644111,
+        828144
+      ]
+    },
+    {
+      "name": "Rawai Boutique",
+      "slug": "rawai-boutique",
+      "rooms": 28,
+      "occupancy": [
+        0.72,
+        0.74,
+        0.62,
+        0.42,
+        0.3,
+        0.26,
+        0.28,
+        0.32,
+        0.4,
+        0.54,
+        0.67,
+        0.77
+      ],
+      "adr": [
+        580,
+        560,
+        460,
+        350,
+        260,
+        250,
+        270,
+        290,
+        350,
+        430,
+        540,
+        610
+      ],
+      "pms_id": null,
+      "pms": "Manual",
+      "location": "Rawai, Mueang Phuket",
+      "type": "Boutique Hotel",
+      "monthly_revenue": [
+        350784,
+        348095,
+        239567,
+        123480,
+        65520,
+        54600,
+        63504,
+        77952,
+        117600,
+        195048,
+        303912,
+        394548
+      ]
+    },
+    {
+      "name": "Surin Beach Villa",
+      "slug": "surin-beach-villa",
+      "rooms": 12,
+      "occupancy": [
+        0.85,
+        0.88,
+        0.75,
+        0.52,
+        0.35,
+        0.3,
+        0.32,
+        0.38,
+        0.48,
+        0.65,
+        0.8,
+        0.9
+      ],
+      "adr": [
+        1500,
+        1450,
+        1200,
+        900,
+        680,
+        650,
+        700,
+        780,
+        900,
+        1100,
+        1400,
+        1600
+      ],
+      "pms_id": null,
+      "pms": "Manual",
+      "location": "Choeng Thale, Thalang",
+      "type": "Luxury Villa",
+      "monthly_revenue": [
+        458999,
+        459360,
+        324000,
+        168480,
+        85679,
+        70199,
+        80640,
+        106704,
+        155520,
+        257400,
+        403200,
+        518400
+      ]
     }
   ],
-
-  "monthly_data": {
-    "_comment": "Otel bazlı aylık doluluk/ADR/gelir — Excel HOTEL_DB R11+",
-    "1": {
-      "OCA": {"season": "HIGH", "occupancy": 0.80, "adr": 2425},
-      "SUB": {"season": "HIGH", "occupancy": 0.85, "adr": 2425},
-      "MAR": {"season": "HIGH", "occupancy": 0.75, "adr": 2425}
-    }
-  },
-
   "staff": [
     {
-      "name": "Genel Mudur",
-      "department": "Yonetim",
-      "position": "Genel Mudur",
-      "nationality": "TR",
-      "salary": 65000,
-      "hotel": "The Brook Pool Resort",
-      "wp_expiry": null,
-      "wp_required": false
-    },
-    {
-      "name": "FD Muduru",
-      "department": "Front Desk",
-      "position": "FD Muduru",
+      "name": "Somchai Charoenkit",
+      "department": "TEKNIK",
+      "hotel": "brook-pool",
+      "role": "Teknik Şef",
       "nationality": "TH",
-      "salary": 28000,
-      "hotel": "The Brook Pool Resort",
-      "wp_expiry": null,
-      "wp_required": false
+      "wp_expiry": "2026-09-15"
     },
     {
-      "name": "HK Muduru",
-      "department": "Housekeeping",
-      "position": "HK Muduru",
-      "nationality": "MY",
-      "salary": 22000,
-      "hotel": "The Brook Pool Resort",
-      "wp_expiry": "2026-09-15",
-      "wp_required": true
+      "name": "Nongluck Phromma",
+      "department": "HK",
+      "hotel": "brook-pool",
+      "role": "Housekeeping Lider",
+      "nationality": "TH",
+      "wp_expiry": null
     },
     {
-      "name": "Oda Temizlik 1",
-      "department": "Housekeeping",
-      "position": "Oda Temizlik",
-      "nationality": "MY",
-      "salary": 12000,
-      "hotel": "The Brook Pool Resort",
-      "wp_expiry": "2026-09-15",
-      "wp_required": true
+      "name": "Kanya Suwanno",
+      "department": "FB",
+      "hotel": "brook-pool",
+      "role": "Şef Garson",
+      "nationality": "TH",
+      "wp_expiry": null
+    },
+    {
+      "name": "Ahmet Yılmaz",
+      "department": "YONETIM",
+      "hotel": "brook-pool",
+      "role": "GM",
+      "nationality": "TR",
+      "wp_expiry": "2026-07-05"
+    },
+    {
+      "name": "Prasert Wongchai",
+      "department": "TEKNIK",
+      "hotel": "trend-kamala",
+      "role": "Elektrikçi",
+      "nationality": "TH",
+      "wp_expiry": "2026-08-20"
+    },
+    {
+      "name": "Mehmet Demir",
+      "department": "YONETIM",
+      "hotel": "trend-kamala",
+      "role": "Operasyon Müdürü",
+      "nationality": "TR",
+      "wp_expiry": "2026-06-28"
+    },
+    {
+      "name": "Sunan Thaworn",
+      "department": "ON_BURO",
+      "hotel": "case-del-sol",
+      "role": "Resepsiyon Şefi",
+      "nationality": "TH",
+      "wp_expiry": null
+    },
+    {
+      "name": "Anucha Petchsri",
+      "department": "GUVENLIK",
+      "hotel": "patong-heritage",
+      "role": "Güvenlik Amiri",
+      "nationality": "TH",
+      "wp_expiry": null
+    },
+    {
+      "name": "Fatma Kaya",
+      "department": "MUHASEBE",
+      "hotel": "brook-pool",
+      "role": "Muhasebe Müdürü",
+      "nationality": "TR",
+      "wp_expiry": "2026-11-10"
+    },
+    {
+      "name": "Wichai Kaewsing",
+      "department": "FB",
+      "hotel": "kata-sea-view",
+      "role": "Aşçıbaşı",
+      "nationality": "TH",
+      "wp_expiry": null
+    },
+    {
+      "name": "Hüseyin Şahin",
+      "department": "TEKNIK",
+      "hotel": "rawai-boutique",
+      "role": "Bakım Şefi",
+      "nationality": "TR",
+      "wp_expiry": "2026-07-12"
+    },
+    {
+      "name": "Niran Jantarak",
+      "department": "HK",
+      "hotel": "surin-beach-villa",
+      "role": "Housekeeping",
+      "nationality": "TH",
+      "wp_expiry": null
+    },
+    {
+      "name": "Busaba Chaimongkol",
+      "department": "ON_BURO",
+      "hotel": "trend-kamala",
+      "role": "Resepsiyon",
+      "nationality": "TH",
+      "wp_expiry": null
+    },
+    {
+      "name": "Alexey Petrov",
+      "department": "ON_BURO",
+      "hotel": "patong-heritage",
+      "role": "Guest Relations",
+      "nationality": "RU",
+      "wp_expiry": "2026-06-30"
+    },
+    {
+      "name": "Rattana Sornci",
+      "department": "HK",
+      "hotel": "kata-sea-view",
+      "role": "Housekeeping",
+      "nationality": "TH",
+      "wp_expiry": null
+    },
+    {
+      "name": "Kemal Aydın",
+      "department": "TEKNIK",
+      "hotel": "brook-pool",
+      "role": "Havuz Uzmanı",
+      "nationality": "TR",
+      "wp_expiry": "2026-10-01"
+    },
+    {
+      "name": "Pim Tantawan",
+      "department": "FB",
+      "hotel": "rawai-boutique",
+      "role": "Garson",
+      "nationality": "TH",
+      "wp_expiry": null
+    },
+    {
+      "name": "Chai Wongwit",
+      "department": "GUVENLIK",
+      "hotel": "brook-pool",
+      "role": "Güvenlik",
+      "nationality": "TH",
+      "wp_expiry": null
+    },
+    {
+      "name": "Somporn Laokiat",
+      "department": "TEKNIK",
+      "hotel": "patong-heritage",
+      "role": "Klima Teknisyeni",
+      "nationality": "TH",
+      "wp_expiry": "2026-09-25"
     }
   ],
-
   "agencies": [
-    {"name": "Pegas Touristik", "type": "TA", "country": "Rusya", "commission_pct": 0.12, "monthly_revenue": 85000, "commission_thb": 10200, "payment_status": "Odendi"},
-    {"name": "Anex Tour", "type": "TA", "country": "Turkiye/Rusya", "commission_pct": 0.14, "monthly_revenue": 72000, "commission_thb": 10080, "payment_status": "Odendi"},
-    {"name": "TUI Group", "type": "TA", "country": "Avrupa", "commission_pct": 0.15, "monthly_revenue": 56000, "commission_thb": 8400, "payment_status": "Beklemede"},
-    {"name": "Coral Travel", "type": "TA", "country": "Rusya/CIS", "commission_pct": 0.13, "monthly_revenue": 62000, "commission_thb": 8060, "payment_status": "Odendi"},
-    {"name": "Sunmar Tour", "type": "TA", "country": "Rusya", "commission_pct": 0.12, "monthly_revenue": 38000, "commission_thb": 4560, "payment_status": "Gecikti"},
-    {"name": "Booking.com", "type": "OTA", "country": "Global", "commission_pct": 0.15, "monthly_revenue": 165000, "commission_thb": 24750, "payment_status": "VCC Odeme"},
-    {"name": "Expedia", "type": "OTA", "country": "Global", "commission_pct": 0.18, "monthly_revenue": 96000, "commission_thb": 17280, "payment_status": "VCC Odeme"},
-    {"name": "Agoda", "type": "OTA", "country": "APAC", "commission_pct": 0.15, "monthly_revenue": 110000, "commission_thb": 16500, "payment_status": "VCC Odeme"},
-    {"name": "Hotels.com", "type": "OTA", "country": "Global", "commission_pct": 0.20, "monthly_revenue": 0, "commission_thb": 0, "payment_status": "Beklemede"}
+    {
+      "name": "Booking.com",
+      "type": "OTA",
+      "commission_pct": 0.15,
+      "payment_status": "Güncel",
+      "commission_thb": 145000
+    },
+    {
+      "name": "Agoda",
+      "type": "OTA",
+      "commission_pct": 0.17,
+      "payment_status": "Güncel",
+      "commission_thb": 98000
+    },
+    {
+      "name": "Expedia",
+      "type": "OTA",
+      "commission_pct": 0.18,
+      "payment_status": "Beklemede",
+      "commission_thb": 42000
+    },
+    {
+      "name": "Airbnb",
+      "type": "OTA",
+      "commission_pct": 0.03,
+      "payment_status": "Güncel",
+      "commission_thb": 28000
+    },
+    {
+      "name": "Sunmar Tour",
+      "type": "TA",
+      "commission_pct": 0.2,
+      "payment_status": "Gecikti",
+      "commission_thb": 67000
+    },
+    {
+      "name": "Coral Travel",
+      "type": "TA",
+      "commission_pct": 0.18,
+      "payment_status": "Güncel",
+      "commission_thb": 35000
+    },
+    {
+      "name": "Pegas Touristik",
+      "type": "TA",
+      "commission_pct": 0.2,
+      "payment_status": "Güncel",
+      "commission_thb": 41000
+    },
+    {
+      "name": "Anex Tour",
+      "type": "TA",
+      "commission_pct": 0.19,
+      "payment_status": "Beklemede",
+      "commission_thb": 31000
+    },
+    {
+      "name": "Fun&Sun",
+      "type": "TA",
+      "commission_pct": 0.18,
+      "payment_status": "Güncel",
+      "commission_thb": 24000
+    }
   ],
-
-  "operations": [
-    {"task": "Otel Isletme Lisansi Yenileme", "priority": "KRITIK", "status": "Beklemede", "deadline": "Ocak 31", "authority": "Phuket Provincial Office"},
-    {"task": "Yangin Guvenligi Sertifikasi", "priority": "KRITIK", "status": "Beklemede", "deadline": "Haziran", "authority": "Fire Prevention Bureau"},
-    {"task": "Sigorta Policeleri Yenileme", "priority": "KRITIK", "status": "Aktif", "deadline": "Ocak", "authority": "Allianz / AXA"},
-    {"task": "VAT PP30 Beyani", "priority": "NORMAL", "status": "Periyodik", "deadline": "Her ay 15'i", "authority": "Revenue Department"},
-    {"task": "SSO Bildirimi", "priority": "NORMAL", "status": "Periyodik", "deadline": "Her ay 15'i", "authority": "Social Security Office"},
-    {"task": "OTA Komisyon Mutabakati", "priority": "NORMAL", "status": "Periyodik", "deadline": "Her ay 20'si", "authority": "Booking/Expedia/Agoda"},
-    {"task": "Personel Bordro Hazirligi", "priority": "YUKSEK", "status": "Periyodik", "deadline": "Her ay 25'i", "authority": "Otel Yonetimi"}
-  ],
-
   "suppliers": [
-    {"name": "Asansor Bakim", "category": "Teknik", "monthly_cost": null, "contract_expiry": null},
-    {"name": "Havuz Kimyasal", "category": "Teknik", "monthly_cost": null, "contract_expiry": null},
-    {"name": "CCTV Sistem", "category": "Guvenlik", "monthly_cost": null, "contract_expiry": null},
-    {"name": "Camasirhane (Laguna)", "category": "HK", "monthly_cost": 12000, "contract_expiry": null},
-    {"name": "Internet/WiFi", "category": "IT", "monthly_cost": null, "contract_expiry": null},
-    {"name": "Jenerator/Elektrik", "category": "Teknik", "monthly_cost": null, "contract_expiry": null}
-  ]
+    {
+      "name": "PEA Electricity",
+      "category": "Elektrik",
+      "contract_expiry": null,
+      "monthly_avg_thb": 68608,
+      "last_invoice_thb": 71200
+    },
+    {
+      "name": "Phuket Water Authority",
+      "category": "Su",
+      "contract_expiry": null,
+      "monthly_avg_thb": 18500,
+      "last_invoice_thb": 16200
+    },
+    {
+      "name": "AIS Business",
+      "category": "İnternet",
+      "contract_expiry": "2026-12-31",
+      "monthly_avg_thb": 4200,
+      "last_invoice_thb": 4200
+    },
+    {
+      "name": "Makro Wholesale",
+      "category": "F&B Tedarik",
+      "contract_expiry": null,
+      "monthly_avg_thb": 95000,
+      "last_invoice_thb": 102000
+    },
+    {
+      "name": "Global House",
+      "category": "Teknik Malzeme",
+      "contract_expiry": null,
+      "monthly_avg_thb": 15000,
+      "last_invoice_thb": 8500
+    },
+    {
+      "name": "Pool Pro Thailand",
+      "category": "Havuz Kimyasal",
+      "contract_expiry": "2026-09-30",
+      "monthly_avg_thb": 8200,
+      "last_invoice_thb": 8200
+    },
+    {
+      "name": "Aqua Pool Service",
+      "category": "Havuz Bakım",
+      "contract_expiry": "2026-06-15",
+      "monthly_avg_thb": 12000,
+      "last_invoice_thb": 12000
+    },
+    {
+      "name": "Big C Supercenter",
+      "category": "F&B Tedarik",
+      "contract_expiry": null,
+      "monthly_avg_thb": 45000,
+      "last_invoice_thb": 38000
+    },
+    {
+      "name": "Lazada Business",
+      "category": "İT Sarf",
+      "contract_expiry": null,
+      "monthly_avg_thb": 3500,
+      "last_invoice_thb": 2200
+    },
+    {
+      "name": "Thai Watsadu",
+      "category": "Yapı Malzeme",
+      "contract_expiry": null,
+      "monthly_avg_thb": 8000,
+      "last_invoice_thb": 3500
+    },
+    {
+      "name": "CP Fresh Mart",
+      "category": "F&B Tedarik",
+      "contract_expiry": "2027-01-31",
+      "monthly_avg_thb": 28000,
+      "last_invoice_thb": 31000
+    },
+    {
+      "name": "Bangkok Insurance",
+      "category": "Sigorta",
+      "contract_expiry": "2026-10-31",
+      "monthly_avg_thb": 0,
+      "last_invoice_thb": 0
+    },
+    {
+      "name": "JVC Professional",
+      "category": "AV Ekipman",
+      "contract_expiry": null,
+      "monthly_avg_thb": 0,
+      "last_invoice_thb": 0
+    },
+    {
+      "name": "Electrical Plus Phuket",
+      "category": "Elektrik Malzeme",
+      "contract_expiry": null,
+      "monthly_avg_thb": 6500,
+      "last_invoice_thb": 9200
+    },
+    {
+      "name": "CleanPro Supply",
+      "category": "Temizlik Malzeme",
+      "contract_expiry": "2026-08-31",
+      "monthly_avg_thb": 12000,
+      "last_invoice_thb": 11500
+    },
+    {
+      "name": "Gas Tech Thailand",
+      "category": "LPG/Doğalgaz",
+      "contract_expiry": null,
+      "monthly_avg_thb": 8500,
+      "last_invoice_thb": 7800
+    }
+  ],
+  "operations": [
+    {
+      "task": "TM30 bildirim kontrolü",
+      "department": "YONETIM",
+      "priority": "KRITIK",
+      "deadline": "2026-06-24",
+      "status": "Beklemede"
+    },
+    {
+      "task": "Yangın güvenlik sertifikası yenileme",
+      "department": "TEKNIK",
+      "priority": "YUKSEK",
+      "deadline": "2026-07-09",
+      "status": "Beklemede"
+    },
+    {
+      "task": "Otel lisansı yenileme",
+      "department": "YONETIM",
+      "priority": "YUKSEK",
+      "deadline": "2026-08-08",
+      "status": "Beklemede"
+    },
+    {
+      "task": "Havuz su analizi",
+      "department": "TEKNIK",
+      "priority": "NORMAL",
+      "deadline": "2026-06-24",
+      "status": "Tamamlandi"
+    }
+  ],
+  "financial": {
+    "months": [
+      "Oca",
+      "Şub",
+      "Mar",
+      "Nis",
+      "May",
+      "Haz",
+      "Tem"
+    ],
+    "revenue": [
+      485000,
+      512000,
+      408000,
+      298000,
+      210000,
+      195000,
+      205000
+    ],
+    "expenses": [
+      420000,
+      445000,
+      395000,
+      340000,
+      393350,
+      396440,
+      403729
+    ],
+    "break_even_adr": 684,
+    "reconciliation": {
+      "brook": {
+        "bank_statement": 303620,
+        "accounting": 129290,
+        "discrepancy": 174330,
+        "discrepancy_pct": 135,
+        "notes": "PEA elektriği bankadan 68,608 THB çekilmiş, muhasebe 9,290 THB. Maaş + servis charge tutarsız. Çamaşırhane ve temizlik muhasebede yok."
+      }
+    }
+  }
 }

@@ -1,35 +1,44 @@
-# 🤖 Otel Otomasyon Modülleri — Telegram Entegrasyonu
+# 🤖 Otel Otomasyon Motoru v2.0
 
-> Mevcut Telegram grubu (Phuket-Lato, 6+1 topic) üzerine inşa edilen otomasyon botları.
-> Her modül bağımsız çalışır, `@Latotranslate_bot` (çeviri) gibi ayrı bot token'ları kullanır.
+> 10 modüllü gelişmiş otomasyon sistemi — Excel analizi sentezlenerek kuruldu.
+> Cron jobs: Hermes scheduler üzerinden otomatik çalışır.
 
 ## Modüller
 
-| # | Modül | Bot | Topic | Durum |
+| # | Modül | Cron | Topic | Açıklama |
 |---|---|---|---|---|
-| 0 | **Çeviri** | @Latotranslate_bot | #146 🌐 | ✅ Aktif |
-| 1 | **Günlük Bülten** | @LatoBrief_bot | #132 🛎️ | 🟡 Kod hazır |
-| 2 | **TM30 + WP Alert** | @LatoBrief_bot | #130 ⚡ | 🟡 Kod hazır |
-| 3 | **Fatura OCR** | @LatoBrief_bot | #133 📦 | 🟡 Kod hazır |
-| 4 | **Rakip Fiyat** | @LatoBrief_bot | #133 📦 | 🔴 Planlandı |
-| 5 | **Finansal Özet** | @LatoBrief_bot | #132 🛎️ | 🔴 Planlandı |
+| 1 | `briefing` | Her gün 08:00 | #132 | Günlük operasyon bülteni + AI strateji |
+| 2 | `wp` | Her gün 09:00 | #132 | Work permit 30/15/7/0 gün uyarı |
+| 3 | `tm30` | Her gün 09:00 | #132 | TM30 bildirim hatırlatma (24 saat) |
+| 4 | `bureaucratic` | Her gün 09:00 | #133 | VAT/SSO/Bordro/PND50 deadline |
+| 5 | `agency` | İsteğe bağlı | #133 | Acente ödeme takibi |
+| 6 | `supplier` | İsteğe bağlı | #133 | Tedarikçi sözleşme süresi |
+| 7 | `financial` | Pzt 10:00 | #132 | Haftalık P&L + anomali tespiti |
+| 8 | `electricity` | Pzt 10:00 | #130 | Elektrik faturası +%20 uyarı |
+| 9 | `reconciliation` | Pzt 10:00 | #133 | Banka vs muhasebe mutabakat |
+| 10 | `ota` | İsteğe bağlı | #132 | OTA yorum sentiment analizi |
+| 🏷️ | `competitor` | Pzt+Per 07:00 | #133 | Rakip fiyat izleme + AI öneri |
 
-## Ortak Altyapı
+## Dosyalar
+- `hotel_data.py` — Veri katmanı (7 otel, 19 personel, 9 acente, 16 tedarikçi)
+- `automation_engine.py` — 10 modüllü ana motor
+- `competitor_monitor.py` — Rakip fiyat izleme + dinamik fiyatlandırma
+- `data/hotel_db.json` — Çalışan veritabanı (seed edilmiş)
 
-Tüm modüller şu kaynakları kullanır:
-- **HOTEL_DB**: 7 otel, aylık doluluk/ADR/gelir verileri
-- **PERSONEL GOREV**: 19 personel, WP bitiş tarihleri, departmanlar
-- **OPERASYON YONETIMI**: Bürokratik takvim, ceza bilgileri
-- **Elektraweb API**: Brook için rezervasyon/doluluk verisi (ID: 101027)
+## Çalıştırma
+```bash
+# Tek modül
+python3 automation_engine.py briefing
 
-## Entegrasyon Noktaları
+# Tüm modüller
+python3 automation_engine.py
 
+# Rakip izleme
+python3 competitor_monitor.py
 ```
-Excel (HOTEL_DB)  ←→  PostgreSQL/JSON  ←→  Telegram Bot
-                         ↑
-                    Cron Jobs (Hermes)
-                    ├── 08:00 → Günlük bülten
-                    ├── Check-in event → TM30 alert
-                    ├── WP -30/-15/-7 gün → Alert
-                    └── Pazartesi 09:00 → Finansal özet
-```
+
+## Cron Jobs (Hermes)
+- `fd347c853747` — Günlük bülten (08:00)
+- `ddf8f9475a85` — WP/TM30/Bürokratik (09:00)
+- `246cade5111a` — Haftalık finansal (Pzt 10:00)
+- `40de123981d8` — Rakip fiyat (Pzt+Per 07:00)
