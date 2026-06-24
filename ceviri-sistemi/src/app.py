@@ -21,6 +21,11 @@ import config
 from stt_engine import transcribe
 from translation_engine import translate_text, detect_language_simple
 from tts_engine import synthesize
+from voice_registry import (
+    identify_speaker, register_speaker, get_voice_id,
+    get_speaker_gender, get_speaker_by_telegram_id, list_speakers,
+)
+from accent_memory import apply_corrections, add_correction
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger("lato-translate")
@@ -31,6 +36,8 @@ API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
 GROUP_CHAT_ID = config.GROUP_CHAT_ID
 TOPIC_ID = config.TRANSLATION_TOPIC_ID
 HTTP_PORT = 8088
+ADMIN_USER_IDS = {6756699467}
+pending_registrations = {}
 
 if not BOT_TOKEN:
     logger.error("❌ TRANSLATE_BOT_TOKEN yok!")
@@ -72,15 +79,26 @@ async def download_file(file_id):
 
 
 # ── Pipeline ──────────────────────────────────────────────────────
-async def do_translate(original, source_lang, sender_name="Konuşmacı"):
+async def do_translate(original, source_lang, sender_name="Konuşmacı",
+                       speaker_name=None, apply_accent=False):
+    # Accent düzeltme
+    if apply_accent and speaker_name:
+        original = apply_corrections(original, speaker_name)
+
     targets = [l for l in config.ACTIVE_LANGUAGES if l != source_lang]
-    translations = translate_text(original, source_lang, targets)
+    translations = translate_text(original, source_lang, targets, speaker_name)
     return {"original": original, "source_lang": source_lang,
-            "translations": translations, "sender_name": sender_name}
+            "translations": translations, "sender_name": sender_name,
+            "speaker_name": speaker_name}
 
 def build_text(result, elapsed=0):
     sl = result["source_lang"]
-    lines = [f"🗣 **{result['sender_name']}**  {FLAG.get(sl,'🗣')} {LNAME.get(sl,sl)}:",
+    display_name = result.get("speaker_name") or result["sender_name"]
+    badge = ""
+    sp = result.get("speaker_name")
+    if sp and sp != result["sender_name"]:
+        badge = f" 👤{sp}"
+    lines = [f"🗣 **{display_name}**{badge}  {FLAG.get(sl,'🗣')} {LNAME.get(sl,sl)}:",
              result["original"], ""]
     for l, t in result["translations"].items():
         if t:
@@ -90,11 +108,13 @@ def build_text(result, elapsed=0):
     return "\n".join(lines).strip()
 
 async def send_tts(result, thread_id):
+    speaker_name = result.get("speaker_name")
+    voice_id = get_voice_id(speaker_name) if speaker_name else None
     for l, t in result["translations"].items():
         if not t:
             continue
         try:
-            ogg = synthesize(t, language=l)
+            ogg = synthesize(t, voice_id=voice_id, language=l, speaker_name=speaker_name)
             await tg_upload("sendVoice",
                 fields={"chat_id": str(GROUP_CHAT_ID),
                         "message_thread_id": str(thread_id),
@@ -361,34 +381,182 @@ async def _partial(ws, chunks):
         logger.debug(f"Partial: {e}")
 
 
-# ── Telegram voice handler ────────────────────────────────────────
+# ── Telegram voice handler (2-aşamalı: önce metin, sonra ses) ────
 async def handle_voice(msg):
     chat_id = msg["chat"]["id"]
     thread_id = msg.get("message_thread_id", TOPIC_ID)
-    sender_name = msg.get("from", {}).get("first_name", "?")
+    sender = msg.get("from", {})
+    sender_id = sender.get("id", 0)
+    sender_name = sender.get("first_name", "?")
     file_id = msg.get("voice", {}).get("file_id")
 
     t0 = time.time()
+
+    # ── Registration flow ──
+    reg = pending_registrations.get(sender_id)
+    if reg and time.time() < reg["expires"]:
+        try:
+            ogg = await download_file(file_id)
+            register_speaker(name=reg["name"], audio_path=ogg,
+                             telegram_user_id=sender_id, gender=reg["gender"])
+            os.unlink(ogg)
+            del pending_registrations[sender_id]
+            await tg("sendMessage", chat_id=chat_id, message_thread_id=thread_id,
+                     text=f"✅ **{reg['name']}** sesi kaydedildi! ({reg['gender']})\n\n"
+                          "Artık konuştuğunda otomatik tanınacaksın.\n"
+                          "Çeviriler senin ses özelliklerine göre yapılacak.")
+            logger.info(f"✅ Speaker registered: {reg['name']}")
+        except Exception as e:
+            logger.error(f"Registration: {e}")
+            await tg("sendMessage", chat_id=chat_id, message_thread_id=thread_id,
+                     text=f"❌ Kayıt hatası: {str(e)[:200]}")
+        return
+
+    # Cleanup expired
+    expired = [uid for uid, r in pending_registrations.items() if time.time() >= r["expires"]]
+    for uid in expired:
+        del pending_registrations[uid]
+
+    # AŞAMA 0: Hemen "işleniyor" mesajı gönder
     proc_msg = await tg("sendMessage", chat_id=chat_id, message_thread_id=thread_id,
-                        text=f"🎧 **{sender_name}** dinleniyor...")
+                        text=f"🎧 **{sender_name}** → ⏳ ses işleniyor...")
     msg_id = proc_msg.get("result", {}).get("message_id")
+    if not msg_id:
+        logger.error("Voice: couldn't get msg_id for processing message")
+        return
 
     try:
         ogg = await download_file(file_id)
+
+        # ── Konuşmacı tanı (paralel değil, voice_registry MFCC) ──
+        speaker_name = None
+        try:
+            speaker_name, conf = identify_speaker(ogg)
+            if speaker_name:
+                logger.info(f"👤 Speaker: {speaker_name} (conf={conf:.2f})")
+            else:
+                logger.info(f"👤 Unidentified (best={conf:.2f})")
+        except Exception as e:
+            logger.warning(f"Speaker ID skipped: {e}")
+
+        # AŞAMA 1: Whisper STT → metni hemen göster (~1-2 sn)
         stt = await run_whisper(ogg)
-        os.unlink(ogg)
         original = stt["text"].strip()
         if not original:
-            await tg("editMessageText", chat_id=chat_id, message_id=msg_id, text="🔇 Anlaşılamadı")
+            await tg("editMessageText", chat_id=chat_id, message_id=msg_id,
+                     text=f"🔇 **{sender_name}** → Anlaşılamadı. Lütfen tekrar dene.")
+            os.unlink(ogg)
             return
-        result = await do_translate(original, stt["language"], sender_name)
-        elapsed = time.time() - t0
-        await tg("editMessageText", chat_id=chat_id, message_id=msg_id, text=build_text(result, elapsed))
+
+        # Metin çevirisini yap ve göster
+        result = await do_translate(original, stt["language"], sender_name,
+                                    speaker_name=speaker_name, apply_accent=True)
+        stt_elapsed = time.time() - t0
+        text_preview = build_text(result, stt_elapsed)
+        text_preview += "\n\n⏳ Sesli çeviri hazırlanıyor..."
+        await tg("editMessageText", chat_id=chat_id, message_id=msg_id,
+                 text=text_preview)
+        logger.info(f"✅ Metin hazır ({stt_elapsed:.1f}s) — TTS başlıyor")
+
+        # AŞAMA 2: TTS arkada hazırlanırken mesaj zaten ekranda
         await send_tts(result, thread_id)
-        logger.info(f"✅ Voice ({elapsed:.1f}s)")
+
+        # TTS bitti → metin mesajını güncelle (ses hazır işareti)
+        elapsed = time.time() - t0
+        final_text = build_text(result, elapsed)
+        final_text += "\n\n🎤 Sesli çeviri gönderildi ✅"
+        await tg("editMessageText", chat_id=chat_id, message_id=msg_id,
+                 text=final_text)
+        logger.info(f"✅ Voice tamam ({elapsed:.1f}s) speaker={speaker_name}")
+
+        os.unlink(ogg)
+
     except Exception as e:
         logger.error(f"Voice: {e}")
-        await tg("editMessageText", chat_id=chat_id, message_id=msg_id, text=f"❌ {str(e)[:200]}")
+        try:
+            await tg("editMessageText", chat_id=chat_id, message_id=msg_id,
+                     text=f"❌ Hata: {str(e)[:200]}")
+        except Exception:
+            pass
+
+
+# ── Command handler ───────────────────────────────────────────────
+async def handle_command(msg):
+    chat_id = msg["chat"]["id"]
+    thread_id = msg.get("message_thread_id", TOPIC_ID)
+    text = msg.get("text", "").strip()
+    sender = msg.get("from", {})
+    sender_id = sender.get("id", 0)
+    sender_name = sender.get("first_name", "?")
+
+    parts = text.split()
+    cmd = parts[0].lower().split("@")[0]
+    args = parts[1:]
+
+    if cmd in ("/komutlar", "/help", "/start"):
+        await tg("sendMessage", chat_id=chat_id, message_thread_id=thread_id,
+            text="🌐 **Çeviri Botu v2.0 Komutları**\n\n"
+                 "🎙 **Voice mesaj gönder** → otomatik çevirir\n"
+                 "💬 **Metin yaz** → otomatik çevirir\n\n"
+                 "**Komutlar:**\n"
+                 "`/kayit [isim] [e/bayan]` — Sesini kaydet (klonlama için)\n"
+                 "`/sesler` — Kayıtlı konuşmacıları listele\n"
+                 "`/dil` — Aktif diller\n"
+                 "`/düzelt [yanlış] > [doğru]` — Kelime düzeltmesi ekle\n"
+                 "`/komutlar` — Bu mesaj\n\n"
+                 "🇹🇷 Türkçe ↔ 🇹🇭 Tayca ↔ 🇬🇧 İngilizce")
+
+    elif cmd in ("/kayit", "/kaydol"):
+        if not args:
+            await tg("sendMessage", chat_id=chat_id, message_thread_id=thread_id,
+                text="📝 **Ses Kaydı**\n\n"
+                     "Kullanım: `/kayit [isim] [e/bayan]`\n"
+                     "Örnek: `/kayit Ahmet e`\n\n"
+                     "Komuttan sonra 30 sn içinde sesli mesaj gönder.")
+            return
+
+        name = args[0]
+        gender = "female"
+        if len(args) >= 2 and args[1].lower() in ("e", "erkek", "male", "m"):
+            gender = "male"
+
+        pending_registrations[sender_id] = {
+            "name": name, "gender": gender, "expires": time.time() + 30,
+        }
+        await tg("sendMessage", chat_id=chat_id, message_thread_id=thread_id,
+            text=f"🎙 **{name}** ({gender}) için ses kaydı başladı!\n\n"
+                 "Şimdi bir **sesli mesaj gönder** (5-15 sn):\n"
+                 f"\"Merhaba, benim adım {name}.\"\n\n⏱ 30 sn süre var.")
+
+    elif cmd == "/sesler":
+        speakers = list_speakers()
+        if not speakers:
+            await tg("sendMessage", chat_id=chat_id, message_thread_id=thread_id,
+                text="🔇 Henüz kayıtlı konuşmacı yok.\n`/kayit [isim] [e/bayan]` ile kaydol.")
+            return
+        lines = ["👥 **Kayıtlı Konuşmacılar:**\n"]
+        for name, data in speakers.items():
+            icon = "👨" if data.get("gender") == "male" else "👩"
+            cloned = " 🔊" if data.get("voice_id") else ""
+            lines.append(f"{icon} **{name}**{cloned} — {data.get('registered_samples', 0)} örnek")
+        await tg("sendMessage", chat_id=chat_id, message_thread_id=thread_id, text="\n".join(lines))
+
+    elif cmd == "/dil":
+        langs = [f"{FLAG[l]} {LNAME[l]}" for l in config.ACTIVE_LANGUAGES]
+        await tg("sendMessage", chat_id=chat_id, message_thread_id=thread_id,
+            text=f"🌐 **Aktif Diller:**\n{'  •  '.join(langs)}")
+
+    elif cmd in ("/düzelt", "/duzelt"):
+        full = " ".join(args)
+        if ">" not in full:
+            await tg("sendMessage", chat_id=chat_id, message_thread_id=thread_id,
+                text="Kullanım: `/düzelt [yanlış] > [doğru]`\nÖrnek: `/düzelt calismiyor > çalışmıyor`")
+            return
+        wrong, right = full.split(">", 1)
+        sp = get_speaker_by_telegram_id(sender_id) or sender_name
+        add_correction(sp, wrong.strip(), right.strip())
+        await tg("sendMessage", chat_id=chat_id, message_thread_id=thread_id,
+            text=f"✅ Düzeltme kaydedildi: **{sp}** için\n`{wrong.strip()}` → `{right.strip()}`")
 
 
 # ── Telegram polling ──────────────────────────────────────────────
@@ -413,13 +581,19 @@ async def poll_loop():
                     if not m: continue
                     if m.get("chat", {}).get("id") != GROUP_CHAT_ID: continue
                     if m.get("message_thread_id") != TOPIC_ID: continue
-                    if "voice" in m:
+
+                    txt = m.get("text", "")
+                    if txt.startswith("/"):
+                        await handle_command(m)
+                    elif "voice" in m:
                         await handle_voice(m)
-                    elif "text" in m and not m["text"].startswith("/"):
-                        text = m["text"].strip()
+                    elif "text" in m and txt.strip():
                         name = m.get("from", {}).get("first_name", "?")
-                        src = detect_language_simple(text)
-                        result = await do_translate(text, src, name)
+                        sender_id = m.get("from", {}).get("id", 0)
+                        sp = get_speaker_by_telegram_id(sender_id)
+                        src = detect_language_simple(txt)
+                        result = await do_translate(txt, src, name,
+                                                    speaker_name=sp, apply_accent=True)
                         await tg("sendMessage", chat_id=GROUP_CHAT_ID,
                                  message_thread_id=m.get("message_thread_id", TOPIC_ID),
                                  text=build_text(result))
@@ -435,6 +609,15 @@ async def main():
         logger.error(f"Bot: {me}"); sys.exit(1)
     logger.info(f"✅ @{me['result']['username']}")
 
+    # Register commands (ASCII only for Telegram)
+    await tg("setMyCommands", commands=[
+        {"command": "komutlar", "description": "Komut listesi"},
+        {"command": "kayit", "description": "Ses kaydi — isim ve cinsiyet"},
+        {"command": "sesler", "description": "Kayitli konusmacilar"},
+        {"command": "dil", "description": "Aktif diller"},
+        {"command": "duzelt", "description": "Kelime duzeltme: yanlis > dogru"},
+    ])
+
     app = web.Application()
     app.router.add_get("/", http_index)
     app.router.add_get("/ws", ws_handler)
@@ -446,7 +629,7 @@ async def main():
     logger.info(f"🌐 HTTP+WS: port {HTTP_PORT}")
 
     asyncio.create_task(poll_loop())
-    logger.info("🚀 Hazır! PTT + Voice + Text destekli.")
+    logger.info("🚀 Hazır! v2.0 — PTT + Voice + Text + Speaker ID + Commands")
 
     await asyncio.Event().wait()
 
