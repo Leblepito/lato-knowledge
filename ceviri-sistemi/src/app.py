@@ -168,7 +168,7 @@ def chunks_to_wav(chunks):
     return tmp.name
 
 
-# ── PTT HTML ──────────────────────────────────────────────────────
+# ── PTT HTML (v3 — Google Translate style, HTTP POST + SSE, no WebSocket) ──
 PTT_HTML = r"""<!DOCTYPE html>
 <html lang="tr"><head>
 <meta charset="utf-8">
@@ -176,114 +176,153 @@ PTT_HTML = r"""<!DOCTYPE html>
 <title>🌐 Lato Çeviri</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0e1621;color:#e8e8e8;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-.header{background:#1a2837;padding:12px 16px;text-align:center;border-bottom:1px solid #2a3a4a;flex-shrink:0}
-.header h1{font-size:16px;font-weight:600}
-.header .sub{font-size:12px;color:#6ab2f2;margin-top:2px}
-#display{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
-.msg-block{background:#1a2837;border-radius:12px;padding:14px;border-left:3px solid #6ab2f2;animation:fadeIn .3s}
-.msg-block.translated{border-left-color:#4caf50}
-.msg-block .lang-label{font-size:11px;color:#6ab2f2;margin-bottom:4px;font-weight:600}
-.msg-block.translated .lang-label{color:#4caf50}
-.msg-block .text{font-size:15px;line-height:1.5;word-wrap:break-word}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0e1621;color:#e8e8e8;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+.header{background:#1a2837;padding:10px 16px;text-align:center;border-bottom:1px solid #2a3a4a;flex-shrink:0}
+.header h1{font-size:15px;font-weight:600}
+.header .sub{font-size:11px;color:#6ab2f2}
+#translation-box{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;min-height:0}
+.msg-block{background:#1a2837;border-radius:10px;padding:12px;border-left:3px solid #6ab2f2;animation:fadeIn .2s}
+.msg-block .lang-label{font-size:10px;color:#6ab2f2;margin-bottom:3px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.msg-block .text{font-size:14px;line-height:1.5;word-wrap:break-word}
 .msg-block.partial{opacity:.85;border-left-color:#ff9800}
 .msg-block.partial .lang-label{color:#ff9800}
-.msg-block.partial::after{content:" ✏️"}
-#status-bar{padding:8px 16px;text-align:center;font-size:13px;color:#6ab2f2;min-height:32px;flex-shrink:0}
-#status-bar.listening{color:#ff5252}
-#status-bar.processing{color:#ff9800}
-#status-bar.done{color:#4caf50}
-#ptt-container{padding:16px 16px 36px;display:flex;justify-content:center;background:#1a2837;border-top:1px solid #2a3a4a;flex-shrink:0}
-#ptt-btn{width:130px;height:130px;border-radius:50%;border:none;background:#2a5298;color:white;font-size:14px;font-weight:700;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;transition:all .15s;box-shadow:0 4px 15px rgba(0,80,200,.4)}
-#ptt-btn.recording{background:#d32f2f;transform:scale(1.1);box-shadow:0 0 30px rgba(255,50,50,.6);animation:pulse 1s infinite}
-#ptt-btn:active{transform:scale(.95)}
-#ptt-btn:disabled{opacity:.5}
-@keyframes pulse{0%,100%{box-shadow:0 0 20px rgba(255,50,50,.4)}50%{box-shadow:0 0 40px rgba(255,50,50,.8)}}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+#status-bar{padding:6px 16px;text-align:center;font-size:12px;color:#6ab2f2;min-height:28px;flex-shrink:0}
+#input-area{background:#1a2837;border-top:1px solid #2a3a4a;padding:8px 12px 16px;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
+#text-input{width:100%;padding:12px 16px;border-radius:24px;border:1px solid #3a4a5a;background:#0e1621;color:#e8e8e8;font-size:15px;outline:none;transition:border-color .2s}
+#text-input:focus{border-color:#6ab2f2}
+#text-input::placeholder{color:#5a6a7a}
+.voice-row{display:flex;align-items:center;gap:12px}
+#ptt-btn{flex-shrink:0;width:56px;height:56px;border-radius:50%;border:none;background:#2a5298;color:white;font-size:24px;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none;transition:all .15s;box-shadow:0 2px 8px rgba(0,80,200,.3);display:flex;align-items:center;justify-content:center}
+#ptt-btn.recording{background:#d32f2f;transform:scale(1.08);box-shadow:0 0 20px rgba(255,50,50,.5);animation:pulse 1s infinite}
+#ptt-btn:active{transform:scale(.92)}
+#ptt-btn.disabled{opacity:.4;pointer-events:none}
+#voice-status{font-size:12px;color:#8a9aaa;flex:1;min-height:18px}
+@keyframes pulse{0%,100%{box-shadow:0 0 12px rgba(255,50,50,.4)}50%{box-shadow:0 0 28px rgba(255,50,50,.7)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #6ab2f2;border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
 </style></head><body>
-<div class="header"><h1>🌐 Lato Çeviri</h1><div class="sub">🇹🇷 ↔ 🇹🇭 ↔ 🇬🇧</div></div>
-<div id="display"><div class="msg-block" style="border-left-color:#666;text-align:center"><div class="text" style="color:#888;font-size:13px">🔘 Butona basılı tut ve konuş<br>Konuşurken çeviriyi canlı gör<br>Bırakınca topic'e gönderilir</div></div></div>
-<div id="status-bar">Hazır — bas ve konuş</div>
-<div id="ptt-container"><button id="ptt-btn">🎤 BAS<br>KONUŞ</button></div>
+<div class="header"><h1>🌐 Lato Çeviri</h1><div class="sub">🇹🇷 ↔ 🇹🇭 ↔ 🇬🇧 — Konuş veya yaz, anında çevir</div></div>
+<div id="translation-box"><div class="msg-block" style="border-left-color:#555;text-align:center"><div class="text" style="color:#888;font-size:13px">👇 Aşağıya yaz veya mikrofon butonuna bas<br>Çeviri burada canlı görünecek</div></div></div>
+<div id="status-bar">Hazır</div>
+<div id="input-area">
+<input id="text-input" type="text" placeholder="Bir şey yaz veya mikrofonu kullan..." autocomplete="off" enterkeyhint="send">
+<div class="voice-row">
+<button id="ptt-btn">🎤</button>
+<div id="voice-status">Basılı tut ve konuş</div>
+</div>
+</div>
 <script>
-const WS_URL=(location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws';
 const FLAG={tr:'🇹🇷',th:'🇹🇭',en:'🇬🇧'};
 const NAME={tr:'Türkçe',th:'Tayca',en:'English'};
-let ws=null,rec=null,ctx=null,proc=null,isRecording=false;
-const btn=document.getElementById('ptt-btn'),display=document.getElementById('display'),statusBar=document.getElementById('status-bar');
-
-function connectWS(){
-  ws=new WebSocket(WS_URL);
-  ws.onopen=()=>statusBar.textContent='Hazır — bas ve konuş';
-  ws.onclose=()=>{statusBar.textContent='⚠️ Yeniden bağlanıyor...';setTimeout(connectWS,2000);};
-  ws.onmessage=e=>handleMessage(JSON.parse(e.data));
-}
-connectWS();
-
-function handleMessage(d){
-  if(d.type==='status'){
-    const map={listening:['🔴 Dinleniyor...','listening'],processing:['⏳ Çevriliyor...','processing'],done:['✅ Topic\'e gönderildi!','done']};
-    const m=map[d.status];
-    if(m){statusBar.textContent=m[0];statusBar.className=m[1];}
-    if(d.status==='done'||d.status==='error'){btn.classList.remove('recording');btn.disabled=false;btn.innerHTML='🎤 BAS<br>KONUŞ';}
-  }else if(d.type==='partial'){showPartial(d);}
-  else if(d.type==='done'){showFinal(d.result);}
-  else if(d.type==='error'){statusBar.textContent='❌ '+d.message;}
-}
+const box=document.getElementById('translation-box');
+const statusBar=document.getElementById('status-bar');
+const btn=document.getElementById('ptt-btn');
+const vs=document.getElementById('voice-status');
+const inp=document.getElementById('text-input');
+let rec=null,ctx=null,isRecording=false,chunks=[],sendInterval=null;
 
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 
-function showPartial(d){
-  let el=display.querySelector('.msg-block.partial');
-  if(!el){el=document.createElement('div');el.className='msg-block partial';display.appendChild(el);}
+function showBlock(type,data){
+  const el=document.createElement('div');
+  el.className='msg-block'+(type==='partial'?' partial':'');
   let h='';
-  if(d.original!==undefined){
-    h+=`<div class="lang-label">${FLAG[d.source_lang]||'🗣'} ${NAME[d.source_lang]||d.source_lang} (canlı)</div>`;
-    h+=`<div class="text">${esc(d.original)}</div>`;
-    if(d.translations)for(const[l,t]of Object.entries(d.translations)){if(t){h+=`<div class="lang-label" style="margin-top:6px">${FLAG[l]} ${NAME[l]}</div><div class="text">${esc(t)}</div>`;}}
+  if(data.original){
+    h+=`<div class="lang-label">${FLAG[data.source_lang]||'🗣'} ${NAME[data.source_lang]||data.source_lang}</div>`;
+    h+=`<div class="text">${esc(data.original)}</div>`;
   }
-  el.innerHTML=h;display.scrollTop=display.scrollHeight;
+  if(data.translations){
+    for(const[l,t]of Object.entries(data.translations)){
+      if(t){h+=`<div class="lang-label" style="margin-top:5px">${FLAG[l]} ${NAME[l]}</div><div class="text">${esc(t)}</div>`;}
+    }
+  }
+  if(data.note){h+=`<div style="margin-top:4px;font-size:11px;color:#4caf50">${esc(data.note)}</div>`;}
+  el.innerHTML=h||'<div class="text">...</div>';
+  box.appendChild(el);box.scrollTop=box.scrollHeight;
 }
 
-function showFinal(r){
-  display.querySelectorAll('.msg-block.partial').forEach(e=>e.remove());
-  const b=document.createElement('div');b.className='msg-block translated';
-  let h=`<div class="lang-label">${FLAG[r.source_lang]} ${NAME[r.source_lang]}</div><div class="text">${esc(r.original)}</div>`;
-  for(const[l,t]of Object.entries(r.translations||{})){if(t){h+=`<div class="lang-label" style="margin-top:8px">${FLAG[l]} ${NAME[l]}</div><div class="text">${esc(t)}</div>`;}}
-  h+=`<div style="margin-top:6px;font-size:11px;color:#4caf50">✅ Topic'e gönderildi</div>`;
-  b.innerHTML=h;display.appendChild(b);display.scrollTop=display.scrollHeight;
+function showSpinner(t){
+  vs.innerHTML=`<span class="spinner"></span>${esc(t)}`;
 }
 
+// ── Text input (instant translate like Google Translate) ──
+let textTimer=null;
+inp.addEventListener('input',function(){
+  clearTimeout(textTimer);
+  const t=this.value.trim();
+  if(!t){return;}
+  textTimer=setTimeout(()=>{
+    fetch('/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t})})
+    .then(r=>r.json()).then(d=>{if(d.ok)showBlock('final',d);})
+    .catch(()=>{});
+  },400);
+});
+
+// ── Voice (PTT via HTTP POST streaming) ──
 async function startRec(){
   try{
     const stream=await navigator.mediaDevices.getUserMedia({audio:{sampleRate:16000,channelCount:1,echoCancellation:true,noiseSuppression:true}});
     ctx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
     const src=ctx.createMediaStreamSource(stream);
-    proc=ctx.createScriptProcessor(4096,1,1);
+    const proc=ctx.createScriptProcessor(4096,1,1);
+    chunks=[];isRecording=true;btn.classList.add('recording');btn.classList.remove('disabled');
+    vs.textContent='🔴 Konuşuyor... (çeviri canlı)';
+    statusBar.textContent='🔴 Dinleniyor';
     proc.onaudioprocess=e=>{
       if(!isRecording)return;
       const f32=e.inputBuffer.getChannelData(0);
       const i16=new Int16Array(f32.length);
       for(let i=0;i<f32.length;i++){const s=Math.max(-1,Math.min(1,f32[i]));i16[i]=s<0?s*0x8000:s*0x7FFF;}
-      const u8=new Uint8Array(i16.buffer);let bin='';for(let i=0;i<u8.length;i++)bin+=String.fromCharCode(u8[i]);
-      if(ws.readyState===1)ws.send(JSON.stringify({type:'audio',data:btoa(bin)}));
+      chunks.push(i16.buffer);
     };
     src.connect(proc);proc.connect(ctx.destination);
-    isRecording=true;rec=stream;
-    ws.send(JSON.stringify({type:'start',sender:'Kullanıcı',topic_id:146}));
-  }catch(e){statusBar.textContent='❌ Mikrofon: '+e.message;btn.disabled=false;btn.classList.remove('recording');btn.innerHTML='🎤 BAS<br>KONUŞ';}
+    rec=stream;
+    // Start sending audio chunks every 1.5s for partial transcription
+    sendAudioLoop();
+  }catch(e){vs.textContent='❌ Mikrofon: '+e.message;btn.classList.remove('recording');btn.classList.remove('disabled');}
 }
 
 function stopRec(){
-  isRecording=false;
-  if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'stop'}));
+  isRecording=false;btn.classList.remove('recording');btn.classList.add('disabled');
+  vs.textContent='⏳ İşleniyor...';statusBar.textContent='⏳ Çevriliyor';
+  if(sendInterval){clearInterval(sendInterval);sendInterval=null;}
   if(proc){proc.disconnect();proc=null;}
   if(rec){rec.getTracks().forEach(t=>t.stop());rec=null;}
   if(ctx){setTimeout(()=>{ctx.close();ctx=null;},500);}
-  btn.classList.remove('recording');btn.disabled=true;btn.innerHTML='⏳ İŞLENİYOR';
+  // Send final chunk
+  sendAudio(true);
 }
 
-function pStart(e){e.preventDefault();if(btn.disabled)return;btn.classList.add('recording');btn.innerHTML='🔴 KONUŞUYOR<br>BIRAK=GÖNDER';display.querySelectorAll('.msg-block.partial').forEach(el=>el.remove());startRec();}
+function sendAudioLoop(){
+  if(sendInterval)clearInterval(sendInterval);
+  sendInterval=setInterval(()=>sendAudio(false),1500);
+}
+
+async function sendAudio(isFinal){
+  if(chunks.length===0&&!isFinal)return;
+  const audioBlob=new Blob(chunks,{type:'application/octet-stream'});
+  if(!isFinal)chunks=[];
+  const form=new FormData();
+  form.append('audio',audioBlob,'audio.pcm');
+  form.append('final',isFinal?'1':'0');
+  try{
+    const r=await fetch('/voice-translate',{method:'POST',body:form});
+    const d=await r.json();
+    if(d.ok){
+      if(d.partial)showBlock('partial',{original:d.original,source_lang:d.source_lang,translations:d.translations});
+      if(d.final){
+        box.querySelectorAll('.msg-block.partial').forEach(e=>e.remove());
+        showBlock('final',{original:d.original,source_lang:d.source_lang,translations:d.translations,note:'✅ Topic\'e gönderildi'});
+        vs.textContent='✅ Tamamlandı';
+        statusBar.textContent='Hazır';
+        btn.classList.remove('disabled');
+      }
+    }
+  }catch(e){console.error('sendAudio:',e);}
+}
+
+function pStart(e){e.preventDefault();if(btn.classList.contains('disabled'))return;startRec();}
 function pEnd(e){e.preventDefault();if(!isRecording)return;stopRec();}
 
 btn.addEventListener('touchstart',pStart,{passive:false});
@@ -296,112 +335,92 @@ btn.addEventListener('contextmenu',e=>e.preventDefault());
 </script></body></html>"""
 
 
-# ── HTTP + WebSocket handlers (aiohttp, same port) ────────────────
+# ── HTTP handlers (v3 — POST /translate + /voice-translate, no WebSocket) ───
 async def http_index(request):
     return web.Response(text=PTT_HTML, content_type="text/html", charset="utf-8")
 
-async def ws_handler(request):
-    ws = web.WebSocketResponse(max_msg_size=0)
-    await ws.prepare(request)
-    logger.info(f"🔌 WS bağlandı: {request.remote}")
-
-    audio_chunks = []
-    sender_name = "Konuşmacı"
-    topic_id = TOPIC_ID
-    last_partial = 0
-    recording = False
-
-    async for msg in ws:
-        if msg.type != WSMsgType.TEXT:
-            continue
-        try:
-            data = json.loads(msg.data)
-        except json.JSONDecodeError:
-            continue
-
-        mtype = data.get("type")
-
-        if mtype == "start":
-            audio_chunks = []
-            recording = True
-            sender_name = data.get("sender", "Konuşmacı")
-            topic_id = data.get("topic_id", TOPIC_ID)
-            last_partial = time.time()
-            logger.info(f"🎙 PTT başladı: {sender_name}")
-            await ws.send_str(json.dumps({"type": "status", "status": "listening"}))
-
-        elif mtype == "audio" and recording:
-            raw = base64.b64decode(data["data"])
-            audio_chunks.append(raw)
-            now = time.time()
-            if now - last_partial > 1.5 and len(audio_chunks) > 5:
-                last_partial = now
-                # Partial transcription in background
-                asyncio.create_task(_partial(ws, list(audio_chunks)))
-
-        elif mtype == "stop" and recording:
-            recording = False
-            logger.info(f"⏹ PTT bitti ({len(audio_chunks)} chunks)")
-            await ws.send_str(json.dumps({"type": "status", "status": "processing"}))
-
-            wav_path = chunks_to_wav(audio_chunks)
-            if not wav_path:
-                await ws.send_str(json.dumps({"type": "error", "message": "Ses kısa"}))
-                continue
-
-            stt = await run_whisper(wav_path)
-            os.unlink(wav_path)
-            original = stt["text"].strip()
-
-            if not original:
-                await ws.send_str(json.dumps({"type": "error", "message": "Anlaşılamadı"}))
-                continue
-
-            t0 = time.time()
-            result = await do_translate(original, stt["language"], sender_name)
-            elapsed = time.time() - t0
-
-            await ws.send_str(json.dumps({
-                "type": "done", "result": result,
-                "elapsed": round(elapsed, 1)
-            }, ensure_ascii=False))
-
-            # Post to topic
-            await tg("sendMessage",
-                chat_id=GROUP_CHAT_ID, message_thread_id=topic_id,
-                text=build_text(result, elapsed))
-
-            await send_tts(result, topic_id)
-
-            await ws.send_str(json.dumps({
-                "type": "status", "status": "done", "topic_posted": True
-            }))
-            logger.info(f"✅ Topic'e gönderildi ({elapsed:.1f}s)")
-
-    logger.info("🔌 WS kapandı")
-    return ws
-
-async def _partial(ws, chunks):
-    """Send partial transcription + translation to client."""
+async def handle_translate(request):
+    """POST /translate — text translate (Google Translate style, instant)."""
     try:
-        wav = chunks_to_wav(chunks)
-        if not wav:
-            return
-        stt = await run_whisper(wav)
-        os.unlink(wav)
-        text = stt["text"].strip()
+        body = await request.json()
+        text = body.get("text", "").strip()
         if not text:
-            return
-        targets = [l for l in config.ACTIVE_LANGUAGES if l != stt["language"]]
-        translations = translate_text(text, stt["language"], targets)
-        await ws.send_str(json.dumps({
-            "type": "partial",
-            "original": text,
-            "source_lang": stt["language"],
-            "translations": translations,
-        }, ensure_ascii=False))
+            return web.json_response({"ok": False, "error": "empty"}, status=400)
+
+        src = detect_language_simple(text)
+        result = await do_translate(text, src, "Kullanıcı")
+        return web.json_response({
+            "ok": True,
+            "original": result["original"],
+            "source_lang": result["source_lang"],
+            "translations": result["translations"],
+        }, dumps=lambda o: json.dumps(o, ensure_ascii=False))
     except Exception as e:
-        logger.debug(f"Partial: {e}")
+        logger.error(f"Translate: {e}")
+        return web.json_response({"ok": False, "error": str(e)}, status=500)
+
+async def handle_voice_translate(request):
+    """POST /voice-translate — audio chunk translate (PTT style)."""
+    try:
+        reader = await request.multipart()
+        audio_data = None
+        is_final = False
+
+        async for part in reader:
+            if part.name == "audio":
+                audio_data = await part.read(decode=True)
+            elif part.name == "final":
+                val = await part.text()
+                is_final = val == "1"
+
+        if not audio_data or len(audio_data) < 3200:
+            return web.json_response({"ok": False, "error": "too short"}, status=400)
+
+        # Save raw PCM to temp file and convert to WAV
+        tmp = tempfile.NamedTemporaryFile(suffix=".pcm", delete=False, dir="/tmp")
+        tmp.write(audio_data)
+        tmp.close()
+        pcm_path = tmp.name
+
+        wav_path = tempfile.NamedTemporaryFile(suffix=".wav", delete=False, dir="/tmp").name
+        import subprocess
+        subprocess.run(
+            ["ffmpeg", "-y", "-f", "s16le", "-ar", "16000", "-ac", "1",
+             "-i", pcm_path, wav_path],
+            capture_output=True, timeout=10,
+        )
+        os.unlink(pcm_path)
+
+        stt = await run_whisper(wav_path)
+        os.unlink(wav_path)
+        text = stt["text"].strip()
+
+        if not text:
+            return web.json_response({"ok": False, "error": "no speech"}, status=400)
+
+        result = await do_translate(text, stt["language"], "Kullanıcı")
+
+        resp = {
+            "ok": True,
+            "partial": not is_final,
+            "final": is_final,
+            "original": result["original"],
+            "source_lang": result["source_lang"],
+            "translations": result["translations"],
+        }
+
+        # If final — also post to Telegram topic
+        if is_final:
+            await tg("sendMessage",
+                chat_id=GROUP_CHAT_ID, message_thread_id=TOPIC_ID,
+                text=build_text(result, 0))
+            asyncio.create_task(send_tts(result, TOPIC_ID))
+
+        return web.json_response(resp, dumps=lambda o: json.dumps(o, ensure_ascii=False))
+
+    except Exception as e:
+        logger.error(f"Voice-translate: {e}")
+        return web.json_response({"ok": False, "error": str(e)}, status=500)
 
 
 # ── Telegram voice handler (2-aşamalı: önce metin, sonra ses) ────
@@ -646,13 +665,14 @@ async def main():
 
     app = web.Application()
     app.router.add_get("/", http_index)
-    app.router.add_get("/ws", ws_handler)
+    app.router.add_post("/translate", handle_translate)
+    app.router.add_post("/voice-translate", handle_voice_translate)
 
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", HTTP_PORT)
     await site.start()
-    logger.info(f"🌐 HTTP+WS: port {HTTP_PORT}")
+    logger.info(f"🌐 HTTP: port {HTTP_PORT} — /translate + /voice-translate")
 
     asyncio.create_task(poll_loop())
     logger.info("🚀 Hazır! v2.0 — PTT + Voice + Text + Speaker ID + Commands")
