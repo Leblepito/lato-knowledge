@@ -1,131 +1,91 @@
-# 🛠️ Lato Sistemi — Sıfırdan Kurulum Rehberi
+# 🛠️ Lato Sistemi — Kurulum (Railway)
 
-> Tamamı **Telegram içinde** çalışan Lato otomasyonunun kurulumu:
-> departman input botu + otomasyon modülleri + çeviri.
-> AI: **sadece Claude Sonnet 5**, Claude Pro/Max aboneliği üzerinden `claude` CLI ile —
-> **token ücreti YOK** (plan limitleri dahilinde). LINE köprüsü kaldırıldı (deprecated).
-> Hedef sunucu: Ubuntu/Debian VPS (mevcut: `178.104.122.91`).
+> Tamamı **Telegram içinde** çalışan Lato otomasyonu — **Railway'de tek servis**:
+> departman input botu + gömülü cron bültenleri aynı süreçte.
+> AI: **sadece Claude Sonnet 5**, Claude Pro/Max aboneliği üzerinden — **token faturası YOK**.
+> Kayıtlar ephemeral diske değil, **GitHub'a push-back** ile kalıcı olur.
 
-## 0. Önkoşullar
+## Mimari (Railway)
 
-| Gerekli | Nereden | Not |
-|---|---|---|
-| VPS (Python 3.11+) | mevcut | Docker opsiyonel |
-| Telegram supergroup + Topics | Telegram | Grup: `-1003776134843`, forum modu açık |
-| Ana bot | @BotFather → @Latotry_bot | Gruba admin ekle |
-| Çeviri botu | @BotFather → @Latotranslate_bot | Gruba admin ekle (Topic #146) |
-| **Claude Pro/Max aboneliği** | claude.ai | Sonnet 5'in ücretsiz çalışma yolu |
-| GitHub PAT | github.com | `repo` scope, 90 gün — bilgi bankası commit'leri |
+```
+Railway Service: lato-telegram-bot  (Dockerfile.railway — repo kökü)
+ ├── Telegram long polling (webhook/port GEREKMEZ)
+ ├── Topic → departman input işleme (Sonnet 5, CLAUDE_CODE_OAUTH_TOKEN ile)
+ ├── Gömülü cron: 08:00 bülten, 09:00 WP/TM30/vergi, Pzt 10:00 finansal, Pzt+Per 07:00 rakip (ICT)
+ └── Kayıt → departmanlar/<slug>/... → git commit + push (GITHUB_TOKEN)
+Railway PostgreSQL  (sonraki adım — hotel_db + kayıt indeksi)
+```
 
-Artık **gerekmeyen**ler: ~~OpenRouter key~~ ~~Google/Gemini key~~ ~~LINE channel~~
-(OCR dahil her şeyi Sonnet 5 vision yapıyor; API key'ler sadece opsiyonel fallback).
-
-Telegram topic ID'leri:
-`1` Genel · `130` ⚡ Elektrik & Havuz · `131` 🔧 Teknik Bakım · `132` 🛎️ Operasyon ·
-`133` 📦 Satın Alma · `134` 🍽️ F&B · `135` 💻 IT & Muhasebe · `146` 🌐 Çeviri
-
-## 1. Repo + Claude CLI (ücretsiz Sonnet 5)
+## 1. Hazırlık (kendi bilgisayarında, 2 dakika)
 
 ```bash
-cd /opt
-git clone https://github.com/Leblepito/lato-knowledge.git
-
-# Claude CLI — abonelik girişi (tek seferlik, API faturası çıkarmaz)
+# a) Claude abonelik token'ı (ücretsiz Sonnet 5'in anahtarı)
 npm install -g @anthropic-ai/claude-code
-claude setup-token          # tarayıcıda Claude hesabınla onayla
-
-# Doğrula (Sonnet 5 cevap veriyorsa hazırsın):
-claude -p --model claude-sonnet-5 "tek kelimeyle: hazır mısın?"
+claude setup-token
+# → çıkan sk-ant-oat... değerini kopyala = CLAUDE_CODE_OAUTH_TOKEN
 ```
 
-## 2. Ortam Değişkenleri (.env)
+b) **GitHub token** (kayıt push-back için): GitHub → Settings → Developer settings →
+Fine-grained tokens → Generate: Repository access = **Only lato-knowledge**,
+Permissions → **Contents: Read and write**. → `GITHUB_TOKEN`
 
-Tek merkezi dosya: `/root/.hermes/profiles/lato/.env`
+c) Telegram bot token'ı hazırda yoksa @BotFather → `TELEGRAM_BOT_TOKEN`
+(⚠️ aynı token'ı başka bir sistem getUpdates ile dinliyorsa 409 çatışır — bu bota ayrı token en temizi).
 
-```bash
-# Telegram
-TELEGRAM_BOT_TOKEN=***        # @Latotry_bot (input botu + otomasyon)
-TRANSLATE_BOT_TOKEN=***       # @Latotranslate_bot
+## 2. Railway'de Servisi Aç (5 dakika)
 
-# AI — tek model
-LATO_AI_MODEL=claude-sonnet-5   # değiştirme noktası (varsayılan zaten bu)
+1. [railway.com](https://railway.com) → **New Project** → **Deploy from GitHub repo** → `Leblepito/lato-knowledge`
+2. Build otomatik: repo kökündeki `railway.json` → `Dockerfile.railway` (replica=1 ayarlı — değiştirme, polling çatışır)
+3. Service → **Variables** → ekle:
 
-# Opsiyonel ÜCRETLİ fallback'ler (CLI kotası dolarsa — boş bırakılabilir)
-# ANTHROPIC_API_KEY=***
-# OPENROUTER_API_KEY=***
+| Variable | Değer | Zorunlu |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` | @BotFather token | ✅ |
+| `CLAUDE_CODE_OAUTH_TOKEN` | `claude setup-token` çıktısı | ✅ |
+| `GITHUB_TOKEN` | fine-grained PAT (Contents RW) | ✅ (push-back için) |
+| `LATO_GROUP_ID` | `-1003776134843` | varsayılan zaten bu |
+| `LATO_CRON` | `1` | varsayılan açık |
+| `LATO_GIT_PUSH` | `1` | varsayılan açık (Dockerfile) |
+| `ANTHROPIC_API_KEY` | — | ❌ opsiyonel ücretli fallback |
 
-# Opsiyonel
-# ELEVENLABS_API_KEY=***      # sesli bülten; yoksa Edge TTS (ücretsiz)
-```
+4. **Deploy** → Logs'ta şunu gör: `🚀 Lato Telegram Bot aktif — @... | model=claude-sonnet-5 | git_push=True` ve `⏰ Gömülü cron aktif`
 
-## 3. Departman Input Botu (ANA SİSTEM)
+Port/domain ayarı GEREKMEZ — bot polling ile çalışır, inbound trafik yok.
 
-Kullanıcı hangi topic'e input dosyası atarsa, çıktı o departmana göre hazırlanır.
+## 3. Doğrulama Checklist
 
-**Tek komut kurulum** (adım 1-2 tamamsa):
+- [ ] Logs: `Lato Telegram Bot aktif` + `Gömülü cron aktif` + `REPO_DIR → /tmp/lato-repo (git push-back aktif)`
+- [ ] Herhangi bir departman topic'inde `/help` → kullanım kartı geldi
+- [ ] #131'e arıza fotoğrafı → olay kaydı + `💾 kaydedildi ... ☁️ GitHub'a push edildi`
+- [ ] GitHub'da commit görünüyor: `kayit: departmanlar/teknik-bakim/olaylar/...`
+- [ ] #133'e fatura fotoğrafı → firma/tutar/tarih özeti
+- [ ] Ertesi sabah 08:00 (Phuket) → #132'ye günlük bülten düştü
 
-```bash
-bash /opt/lato-knowledge/deploy-v2.sh
-```
+## 4. Sonraki Adım: PostgreSQL (Railway)
 
-Manuel test için:
+Railway → **New** → **Database** → **PostgreSQL** → `DATABASE_URL` otomatik gelir.
+Plan: `hotel_db.json` (oteller/personel/tedarikçi) + kayıt indeksi tablolara taşınacak;
+bilgi bankasının kendisi (md dosyaları) **git'te kalır** — audit-trail tasarımı bu.
+Bu migrasyon ayrı bir iş — istenince şema + kod hazırlanır.
 
-```bash
-cd /opt/lato-knowledge/telegram-bot
-pip3 install httpx
-set -a; source /root/.hermes/profiles/lato/.env; set +a
-python3 lato_telegram_bot.py     # kalıcı çalıştırma deploy-v2.sh ile (systemd)
-```
+Çeviri sistemi (#146) da istenirse ikinci Railway servisi olarak açılır
+(`ceviri-sistemi/docker/Dockerfile`, port 8088 + public domain) — şimdilik kapsam dışı.
 
-Test: #131 Teknik Bakım'a bir arıza fotoğrafı at → bot olay kaydı taslağı üretip
-`departmanlar/teknik-bakim/olaylar/...` altına kaydetmeli. Detay: `telegram-bot/README.md`
-
-## 4. Otomasyon Modülleri (cron bültenleri)
-
-```bash
-cd /opt/lato-knowledge/otomasyon-modulleri
-python3 hotel_data.py                        # 7 otel / 819 oda seed
-python3 automation_engine.py briefing        # test → #132'ye bülten
-```
-
-Zamanlama (crontab, Asia/Bangkok):
-
-```cron
-0 8 * * *   cd /opt/lato-knowledge/otomasyon-modulleri && python3 automation_engine.py briefing
-0 9 * * *   ... automation_engine.py wp && ... automation_engine.py tm30 && ... automation_engine.py bureaucratic
-0 10 * * 1  ... automation_engine.py financial && ... automation_engine.py electricity && ... automation_engine.py reconciliation
-0 7 * * 1,4 cd /opt/lato-knowledge/otomasyon-modulleri && python3 competitor_monitor.py
-```
-
-## 5. Çeviri Sistemi (Topic #146)
-
-```bash
-cd /opt/lato-knowledge/ceviri-sistemi/docker
-docker compose up -d --build
-```
-
-Çeviri de önce claude CLI dener (ücretsiz); container'da CLI yoksa OpenRouter
-fallback'i için key gerekir — CLI'lı kurulum için `telegram-bot/Dockerfile`'daki
-node+claude-code kalıbını kullan. Caddy: `translate.178-104-122-91.nip.io → lato-translator:8088`.
-
-## 6. Doğrulama Checklist
-
-- [ ] `claude -p --model claude-sonnet-5 "test"` cevap veriyor (abonelik OK)
-- [ ] #131'e foto at → olay kaydı taslağı + `💾 kaydedildi` cevabı geldi
-- [ ] #133'e fatura fotoğrafı at → firma/tutar/tarih özeti geldi
-- [ ] `/help` her departman topic'inde kullanım özetini basıyor
-- [ ] `automation_engine.py briefing` → #132'ye bülten + "🤖 AI Öneri" satırı
-- [ ] `systemctl status lato-telegram-bot` → active (running)
-
-## 7. Bakım
+## 5. Bakım
 
 | Periyot | İş |
 |---|---|
-| 90 gün | GitHub PAT yenile → `.env` güncelle |
-| Aylık | `hotel_db.json` gerçek verilerle güncelle |
-| Gerekirse | `claude setup-token` yenile (oturum düşerse bot uyarı verir) |
-| Haftalık | `departmanlar/` altına botun yazdığı kayıtları gözden geçir + commit (Leb onayı) |
+| Gerekirse | `claude setup-token` yenile → Railway'de `CLAUDE_CODE_OAUTH_TOKEN` güncelle |
+| 90 gün | `GITHUB_TOKEN` yenile |
+| Aylık | `hotel_db.json` gerçek verilerle güncelle (repo'ya commit → redeploy otomatik) |
+| Push sonrası | Railway GitHub entegrasyonu her push'ta otomatik redeploy eder |
 
-**Maliyet**: 0 THB/ay ek AI gideri — Sonnet 5 mevcut Claude aboneliğinin kotasından
-çalışır. Kota dolarsa bot bekletir/uyarır; istenirse `.env`'e API key eklenerek
-ücretli fallback açılır (o da Sonnet 5).
+**Maliyet**: AI = 0 (abonelik kotası) · Railway = seçilen plan (bot hafif: ~256MB RAM yeter).
+
+---
+
+<details><summary>Alternatif: VPS kurulumu (eski yöntem)</summary>
+
+VPS'te çalıştırmak istersen: `bash deploy-v2.sh` (systemd servisi kurar).
+Detay: `telegram-bot/README.md`. Railway varken gerekmez.
+</details>

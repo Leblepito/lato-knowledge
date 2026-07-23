@@ -30,40 +30,40 @@ Aynı topic'e cevap + bilgi bankasına kayıt (departmanlar/<slug>/olaylar|envan
 | 135 | 💻 IT & Muhasebe | ekstre, bordro | mutabakat özeti + anomali işaretleme |
 | 1 | Genel | herhangi | analiz + departman yönlendirme |
 
-## Kurulum (ücretsiz — abonelik ile)
+## Kurulum — Railway (önerilen)
+
+Adım adım: **[`../KURULUM.md`](../KURULUM.md)**. Özet:
+
+1. PC'de `claude setup-token` → `CLAUDE_CODE_OAUTH_TOKEN` kopyala (abonelik = ücretsiz Sonnet 5)
+2. Railway → Deploy from GitHub → bu repo (build: kökteki `Dockerfile.railway`, `railway.json` otomatik)
+3. Variables: `TELEGRAM_BOT_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`, `GITHUB_TOKEN` (Contents RW)
+4. Deploy → log: `🚀 Lato Telegram Bot aktif` — port/domain gerekmez (long polling)
+
+**Railway'de kalıcılık**: disk ephemeral olduğu için bot her kaydı GitHub'a
+**commit + push** eder (`LATO_GIT_PUSH=1`, başlangıçta token'la taze klon alır).
+**Cron'lar gömülü** (`LATO_CRON=1`): 08:00 bülten, 09:00 WP/TM30/vergi,
+Pzt 10:00 finansal, Pzt+Per 07:00 rakip — hepsi ICT, ayrı servis gerekmez.
+
+<details><summary>Alternatif: VPS / systemd kurulumu</summary>
 
 ```bash
-# 1) claude CLI kur ve abonelikle giriş yap (API faturası YOK)
-npm install -g @anthropic-ai/claude-code
-claude setup-token        # tarayıcıda Claude hesabınla onayla (Pro/Max)
-
-# 2) Bağımlılık
-pip3 install httpx
-
-# 3) Çalıştır
-export TELEGRAM_BOT_TOKEN=...   # @Latotry_bot
-cd /opt/lato-knowledge/telegram-bot
-python3 lato_telegram_bot.py
+bash /opt/lato-knowledge/deploy-v2.sh   # repo pull → CLI kontrol → systemd kur+başlat
+journalctl -u lato-telegram-bot -f      # log takibi
 ```
-
-Kalıcı kurulum (önerilen — tek komut, repo kökünden):
-
-```bash
-bash /opt/lato-knowledge/deploy-v2.sh
-```
-
-Script: repo pull → claude CLI kontrol → bağımlılık → systemd servisi
-([`lato-telegram-bot.service`](lato-telegram-bot.service)) kur + başlat.
-Log takibi: `journalctl -u lato-telegram-bot -f`
+</details>
 
 ## Ortam Değişkenleri
 
 | Değişken | Varsayılan | Açıklama |
 |---|---|---|
 | `TELEGRAM_BOT_TOKEN` | — | zorunlu (@Latotry_bot) |
+| `CLAUDE_CODE_OAUTH_TOKEN` | — | abonelik token'ı (`claude setup-token`) — headless ortamda zorunlu |
 | `LATO_AI_MODEL` | `claude-sonnet-5` | tek model — Sonnet 5 |
 | `LATO_REPO_DIR` | repo kökü | bilgi bankası konumu |
 | `LATO_AUTO_SAVE` | `1` | üretilen kaydı repoya yaz (0 = sadece öner) |
+| `LATO_GIT_PUSH` | `0` (Railway image'ında `1`) | kayıtları GitHub'a commit+push et |
+| `GITHUB_TOKEN` | — | push-back için PAT (Contents RW, sadece bu repo) |
+| `LATO_CRON` | `1` | gömülü cron bültenleri (0 = kapat) |
 | `LATO_GROUP_ID` | `-1003776134843` | Telegram grup |
 | `ANTHROPIC_API_KEY` | — | opsiyonel ücretli fallback |
 | `OPENROUTER_API_KEY` | — | opsiyonel ücretli fallback (yine Sonnet 5) |

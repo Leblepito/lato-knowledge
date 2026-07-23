@@ -9,7 +9,7 @@ Bu repo, Lato otelleri için **versiyonlanmış, audit-trail'li, uzun vadeli bil
 
 - **Departman input botu (ANA SİSTEM)**: [`telegram-bot/`](telegram-bot/) — input dosyasını
   hangi topic'e atarsan çıktı o departmana göre hazırlanır
-- **Kurulum (sunucu + botlar + cron)**: [`KURULUM.md`](KURULUM.md)
+- **Kurulum (Railway — tek servis: bot + gömülü cron)**: [`KURULUM.md`](KURULUM.md)
 - **Departman input dosyası nasıl yazılır**: [`departmanlar/INPUT-REHBERI.md`](departmanlar/INPUT-REHBERI.md)
 - **Satın alınacaklar listesi**: [`departmanlar/satin-alma/envanter/satin-alinacaklar.md`](departmanlar/satin-alma/envanter/satin-alinacaklar.md)
 - **AI**: sadece Claude Sonnet 5 — abonelik/CLI ile **ücretsiz** (token faturası yok); LINE kaldırıldı

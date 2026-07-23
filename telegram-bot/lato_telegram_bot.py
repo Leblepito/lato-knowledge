@@ -23,6 +23,7 @@ import asyncio
 import json
 import logging
 import os
+import subprocess
 import sys
 import time
 from datetime import datetime
@@ -44,6 +45,76 @@ REPO_DIR = Path(os.environ.get("LATO_REPO_DIR", Path(__file__).resolve().parent.
 AUTO_SAVE = os.environ.get("LATO_AUTO_SAVE", "1") == "1"   # üretilen dosyayı repoya yaz
 WORKDIR = Path(os.environ.get("LATO_WORKDIR", "/tmp/lato-inbox"))
 OFFSET_FILE = WORKDIR / "offset.txt"
+
+# ── Git push-back (Railway gibi ephemeral disklerde kalıcılık) ─────
+# LATO_GIT_PUSH=1 + GITHUB_TOKEN → her kayıt GitHub'a commit+push edilir.
+GIT_PUSH = os.environ.get("LATO_GIT_PUSH", "0") == "1"
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+REPO_URL = os.environ.get("LATO_REPO_URL", "https://github.com/Leblepito/lato-knowledge.git")
+CLONE_DIR = Path(os.environ.get("LATO_CLONE_DIR", "/tmp/lato-repo"))
+GIT_BRANCH = os.environ.get("LATO_GIT_BRANCH", "main")
+
+
+def _auth_url() -> str:
+    if GITHUB_TOKEN and REPO_URL.startswith("https://"):
+        return REPO_URL.replace("https://", f"https://x-access-token:{GITHUB_TOKEN}@", 1)
+    return REPO_URL
+
+
+def _mask(s: str) -> str:
+    return s.replace(GITHUB_TOKEN, "***") if GITHUB_TOKEN else s
+
+
+def _git(*args, timeout: int = 90) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-C", str(REPO_DIR), *args],
+                          capture_output=True, text=True, timeout=timeout)
+
+
+def ensure_repo():
+    """GIT_PUSH açıkken her zaman ayrı, token'la klonlanmış temiz bir kopyada çalış.
+    (Image içindeki kopya kirli/git'siz olabilir — deterministik davranış için CLONE_DIR.)"""
+    global REPO_DIR
+    if not GIT_PUSH:
+        return
+    if (CLONE_DIR / ".git").exists():
+        r = subprocess.run(["git", "-C", str(CLONE_DIR), "pull", "--rebase",
+                            _auth_url(), GIT_BRANCH],
+                           capture_output=True, text=True, timeout=120)
+        if r.returncode != 0:
+            logger.warning(f"git pull: {_mask(r.stderr)[:150]}")
+    else:
+        logger.info(f"Bilgi bankası klonlanıyor → {CLONE_DIR}")
+        r = subprocess.run(["git", "clone", "--depth", "50", _auth_url(), str(CLONE_DIR)],
+                           capture_output=True, text=True, timeout=180)
+        if r.returncode != 0:
+            logger.error(f"git clone başarısız: {_mask(r.stderr)[:200]} — "
+                         f"kayıtlar sadece geçici diske yazılacak (push-back kapalı)")
+            return
+    REPO_DIR = CLONE_DIR
+    logger.info(f"REPO_DIR → {REPO_DIR} (git push-back aktif)")
+
+
+def git_push_record_sync(rel_path: str) -> bool:
+    """Tek kaydı commit'le ve GitHub'a push'la. Başarısızlıkta False (kayıt diskte kalır)."""
+    if not (GIT_PUSH and GITHUB_TOKEN):
+        return False
+    try:
+        _git("config", "user.name", "Lato Bot")
+        _git("config", "user.email", "lato-bot@users.noreply.github.com")
+        _git("add", rel_path)
+        c = _git("commit", "-m", f"kayit: {rel_path} (lato-telegram-bot)")
+        if c.returncode != 0:
+            logger.warning(f"git commit: {_mask(c.stderr or c.stdout)[:150]}")
+            return False
+        _git("pull", "--rebase", _auth_url(), GIT_BRANCH)
+        p = _git("push", _auth_url(), f"HEAD:{GIT_BRANCH}")
+        if p.returncode != 0:
+            logger.error(f"git push: {_mask(p.stderr)[:200]}")
+            return False
+        return True
+    except Exception as e:
+        logger.error(f"git push-back: {_mask(str(e))[:200]}")
+        return False
 
 MAX_FILE_MB = 10
 MAX_INLINE_CHARS = 30_000       # metin dosyaları prompt'a gömülürken üst sınır
@@ -322,6 +393,10 @@ async def process_message(msg: dict, bot_username: str):
         saved_rel = save_output_file(dosya)
         if saved_rel:
             cevap += f"\n\n💾 Bilgi bankasına kaydedildi: `{saved_rel}`"
+            if GIT_PUSH:
+                pushed = await asyncio.to_thread(git_push_record_sync, saved_rel)
+                cevap += " ☁️ GitHub'a push edildi" if pushed \
+                         else " ⚠️ (GitHub push başarısız — log'a bak)"
         elif dosya.get("yol"):
             cevap += f"\n\n⚠️ Dosya kaydedilemedi (geçersiz yol): {dosya.get('yol')}"
     elif isinstance(dosya, dict) and not AUTO_SAVE:
@@ -335,6 +410,54 @@ async def process_message(msg: dict, bot_username: str):
             os.unlink(f)
         except OSError:
             pass
+
+# ── Gömülü cron (Railway'de ayrı servis gerekmesin) ────────────────
+# LATO_CRON=1 (varsayılan): otomasyon bültenleri bot süreci içinde zamanlanır.
+CRON_ON = os.environ.get("LATO_CRON", "1") == "1"
+CRON_TABLE = [
+    # (saat, dakika, günler(None=her gün, 0=Pzt), modüller) — Asia/Bangkok saati
+    (8, 0, None, ["briefing"]),
+    (9, 0, None, ["wp", "tm30", "bureaucratic"]),
+    (10, 0, [0], ["financial", "electricity", "reconciliation"]),   # Pazartesi
+    (7, 0, [0, 3], ["competitor"]),                                  # Pzt + Perşembe
+]
+
+async def cron_scheduler():
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo("Asia/Bangkok")
+    except Exception:
+        tz = None
+        logger.warning("zoneinfo yok — cron sunucu saatine göre çalışır (TZ=Asia/Bangkok ayarla)")
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "otomasyon-modulleri"))
+    done: set = set()
+    logger.info(f"⏰ Gömülü cron aktif — {len(CRON_TABLE)} zamanlama (Asia/Bangkok)")
+    while True:
+        now = datetime.now(tz) if tz else datetime.now()
+        for hour, minute, days, mods in CRON_TABLE:
+            if now.hour != hour or now.minute != minute:
+                continue
+            if days is not None and now.weekday() not in days:
+                continue
+            key = (now.strftime("%Y-%m-%d"), hour, minute)
+            if key in done:
+                continue
+            done.add(key)
+            logger.info(f"⏰ Cron tetiklendi: {mods}")
+            for m in mods:
+                try:
+                    if m == "competitor":
+                        from competitor_monitor import run_competitor_scan
+                        await run_competitor_scan()
+                    else:
+                        from automation_engine import run_module
+                        await run_module(m)
+                except Exception as e:
+                    logger.error(f"cron {m}: {e}")
+        if len(done) > 500:
+            done = set(sorted(done)[-100:])
+        await asyncio.sleep(30)
+
 
 # ── Ana döngü (long polling) ───────────────────────────────────────
 def load_offset() -> int:
@@ -352,10 +475,12 @@ async def main():
         logger.error("TELEGRAM_BOT_TOKEN tanımsız — çıkılıyor")
         sys.exit(1)
 
+    ensure_repo()  # Railway/ephemeral disk: git push-back için gerçek klon garantile
+
     me = await tg("getMe", timeout=15)
     bot_username = me.get("result", {}).get("username", "Latotry_bot")
     logger.info(f"🚀 Lato Telegram Bot aktif — @{bot_username} | model={MODEL} | "
-                f"repo={REPO_DIR} | auto_save={AUTO_SAVE}")
+                f"repo={REPO_DIR} | auto_save={AUTO_SAVE} | git_push={GIT_PUSH}")
 
     offset = load_offset()
     queue: asyncio.Queue = asyncio.Queue()
@@ -372,6 +497,8 @@ async def main():
                 queue.task_done()
 
     asyncio.create_task(worker())
+    if CRON_ON:
+        asyncio.create_task(cron_scheduler())
 
     while True:
         try:
