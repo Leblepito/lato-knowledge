@@ -46,6 +46,7 @@ c) Telegram bot token'ı hazırda yoksa @BotFather → `TELEGRAM_BOT_TOKEN`
 | `LATO_GROUP_ID` | `-1003776134843` | varsayılan zaten bu |
 | `LATO_CRON` | `1` | varsayılan açık |
 | `LATO_GIT_PUSH` | `1` | varsayılan açık (Dockerfile) |
+| `LATO_TRANSLATE` | `1` | varsayılan açık — cevabı EN+TH olarak da paylaşır |
 | `ANTHROPIC_API_KEY` | — | ❌ opsiyonel ücretli fallback |
 
 4. **Deploy** → Logs'ta şunu gör: `🚀 Lato Telegram Bot aktif — @... | model=claude-sonnet-5 | git_push=True` ve `⏰ Gömülü cron aktif`
@@ -56,7 +57,10 @@ Port/domain ayarı GEREKMEZ — bot polling ile çalışır, inbound trafik yok.
 
 - [ ] Logs: `Lato Telegram Bot aktif` + `Gömülü cron aktif` + `REPO_DIR → /tmp/lato-repo (git push-back aktif)`
 - [ ] Herhangi bir departman topic'inde `/help` → kullanım kartı geldi
-- [ ] #131'e arıza fotoğrafı → olay kaydı + `💾 kaydedildi ... ☁️ GitHub'a push edildi`
+- [ ] #131'e arıza fotoğrafı → birkaç saniye içinde `🔍 Alındı, inceliyorum...` onayı,
+      ardından TR olay kaydı + `💾 kaydedildi ... ☁️ GitHub'a push edildi`
+- [ ] Kaydedilen dosya aynı topic'e **belge olarak da** düşüyor (GitHub açmadan görülür)
+- [ ] TR cevabın ardından `🇬🇧 English` ve `🇹🇭 ภาษาไทย` takip mesajları geliyor
 - [ ] GitHub'da commit görünüyor: `kayit: departmanlar/teknik-bakim/olaylar/...`
 - [ ] #133'e fatura fotoğrafı → firma/tutar/tarih özeti
 - [ ] Ertesi sabah 08:00 (Phuket) → #132'ye günlük bülten düştü

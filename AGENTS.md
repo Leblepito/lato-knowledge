@@ -53,14 +53,20 @@ Skill yazımında [superpowers](https://github.com/obra/superpowers) ve [karpath
 ## Çeviri Sistemi (Topic #146)
 
 **@Latotranslate_bot** — Gerçek zamanlı çok dilli çeviri (TR ↔ TH ↔ EN).
+⚠️ **Durum (2026-07-23)**: bu ses/PTT servisi Railway'de **deploy edilmedi** (eski VPS
+planıydı, Railway-only karara geçilince askıya kaldı — Railway'de sadece
+`lato-knowledge` + `Postgres` servisi var). Topic #146 şu an dinleyicisiz.
 
 - **PTT Web App**: Topic'teki buton → bas-konuş → canlı çeviri → bırak → gönder
 - **Voice Mesaj**: Telegram sesli mesaj → otomatik çeviri + sesli yanıt
 - **Pipeline**: Whisper STT → Claude Sonnet 5 (LATO_TRANSLATE_MODEL ile değiştirilebilir) → Edge TTS (+ElevenLabs hazır)
 - **Ses klonlama**: MFCC tanıma + ElevenLabs IVC (altyapı hazır)
-- **Deploy**: Docker container (`lato-translator`), Caddy HTTPS proxy
-- **URL**: `translate.178-104-122-91.nip.io`
+- **Deploy**: Docker container (`lato-translator`), Caddy HTTPS proxy — **planlanan**, aktif değil
+- **URL**: `translate.178-104-122-91.nip.io` (yayında değil)
 - **Detay**: `ceviri-sistemi/README.md`
+- **Metin çevirisi artık departman botunda gömülü** (bkz. aşağıdaki bölüm) — aynı
+  `ceviri-sistemi/src/translation_engine.py` motorunu ayrı servis kurmadan kullanır.
+  Ses/PTT tarafı hâlâ bu servisin deploy edilmesini bekliyor.
 
 ## Otel Otomasyon Modülleri
 
@@ -81,6 +87,14 @@ Personel input dosyasını (md/txt/csv/foto/pdf) doğrudan departman topic'ine a
 
 - **Topic → departman**: 130-135 eşlemesi, bağlam = README + dil paketi + şablon + spec
 - **Çıktı**: olay kaydı / envanter kartı / hesap / fatura mutabakatı / HACCP kontrol
+- **Çok dilli çıktı**: TR cevaptan sonra aynı çıktı EN + TH olarak da otomatik
+  paylaşılır (`translation_engine.py`, aynı süreç içinde, ek servis yok)
+- **Kayıt görünürlüğü**: bilgi bankasına yazılan dosya GitHub'a push'lanmasının
+  yanında, aynı Telegram topic'ine **dosya olarak da yüklenir** — teknisyenin
+  GitHub erişimi olmasa da kaydı doğrudan görür
+- **Bekleme UX**: girdi alınır alınmaz "inceliyorum" onayı + Claude işlerken
+  sürekli yenilenen "yazıyor" göstergesi (tek seferlik 5sn'lik gösterge, ~60-90sn'lik
+  işlemede "cevap gelmedi" izlenimine yol açıyordu — 2026-07-23 düzeltildi)
 - **Kayıt**: üretilen dosya `departmanlar/<slug>/...` altına otomatik yazılır
 - **Fatura OCR**: foto → Sonnet 5 vision (Gemini kaldırıldı)
 - **Detay**: `telegram-bot/README.md`

@@ -36,6 +36,16 @@ from claude_client import ask_claude, parse_ai_json, ClaudeError, MODEL
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger("lato-tg")
 
+# ── Çeviri motoru (ceviri-sistemi/src — aynı motor Lato-Trans_bot'u besler) ─
+# Ayrı ağır servis (faster-whisper/elevenlabs) kurmadan sadece metin çevirisi
+# fonksiyonunu doğrudan bu süreçte kullanıyoruz (yine claude CLI → ücretsiz).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "ceviri-sistemi" / "src"))
+try:
+    from translation_engine import translate_text
+except Exception as _e:  # openai paketi yoksa / import hatası → çeviri sessizce kapanır
+    translate_text = None
+    logger.warning(f"Çeviri motoru yüklenemedi (openai paketi kurulu mu?): {_e}")
+
 # ── Config ─────────────────────────────────────────────────────────
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", os.environ.get("TRANSLATE_BOT_TOKEN", ""))
 TG_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
@@ -45,6 +55,14 @@ REPO_DIR = Path(os.environ.get("LATO_REPO_DIR", Path(__file__).resolve().parent.
 AUTO_SAVE = os.environ.get("LATO_AUTO_SAVE", "1") == "1"   # üretilen dosyayı repoya yaz
 WORKDIR = Path(os.environ.get("LATO_WORKDIR", "/tmp/lato-inbox"))
 OFFSET_FILE = WORKDIR / "offset.txt"
+
+# ── Çok dilli çıktı ──────────────────────────────────────────────────
+TRANSLATE_ON = os.environ.get("LATO_TRANSLATE", "1") == "1"
+TARGET_LANGS = ["en", "th"]
+LANG_LABEL = {"en": "🇬🇧 English", "th": "🇹🇭 ภาษาไทย"}
+
+# ── Bekleme UX: uzun Claude çağrısı boyunca "yazıyor" göstergesini canlı tut
+TYPING_REFRESH_SEC = 4
 
 # ── Git push-back (Railway gibi ephemeral disklerde kalıcılık) ─────
 # LATO_GIT_PUSH=1 + GITHUB_TOKEN → her kayıt GitHub'a commit+push edilir.
@@ -244,6 +262,27 @@ async def send_reply(text: str, thread_id: int, reply_to: int | None = None):
             await tg("sendMessage", **params)
         reply_to = None  # sadece ilk parça reply olsun
 
+async def send_document(path: Path, thread_id: int, caption: str = "", reply_to: int | None = None):
+    """Kaydedilen dosyayı Telegram'a doğrudan yükle — teknisyen GitHub'a
+    girmeden, aynı topic içinde dosyayı görsün/indirsin."""
+    try:
+        data = {"chat_id": str(GROUP_ID), "message_thread_id": str(thread_id)}
+        if caption:
+            data["caption"] = caption[:1024]
+        if reply_to:
+            data["reply_to_message_id"] = str(reply_to)
+        async with httpx.AsyncClient(timeout=60) as c:
+            with open(path, "rb") as f:
+                r = await c.post(f"{TG_API}/sendDocument", data=data,
+                                 files={"document": (path.name, f)})
+        res = r.json()
+        if not res.get("ok"):
+            logger.error(f"TG sendDocument: {str(res)[:200]}")
+        return res
+    except Exception as e:
+        logger.error(f"sendDocument hatası: {e}")
+        return {"ok": False}
+
 async def download_file(file_id: str, dest: Path) -> Path | None:
     info = await tg("getFile", file_id=file_id)
     fp = info.get("result", {}).get("file_path")
@@ -357,7 +396,18 @@ async def process_message(msg: dict, bot_username: str):
         instruction = instruction[5:].strip()
 
     logger.info(f"📥 {dept['name']} | {user} | dosya={len(files)+len(inline_docs)} | '{instruction[:50]}'")
-    await tg("sendChatAction", chat_id=GROUP_ID, message_thread_id=thread_id, action="typing", _http_timeout=10)
+
+    # Anında geri bildirim — Claude çağrısı 30-90sn sürebilir, "yazıyor" göstergesi
+    # tek başına ~5sn'de kaybolduğu için kullanıcı botun cevap vermediğini sanıyordu.
+    await send_reply("🔍 Alındı, inceliyorum... (biraz sürebilir, bekleyin)", thread_id, msg_id)
+
+    async def _typing_loop():
+        while True:
+            await tg("sendChatAction", chat_id=GROUP_ID, message_thread_id=thread_id,
+                     action="typing", _http_timeout=10)
+            await asyncio.sleep(TYPING_REFRESH_SEC)
+
+    typing_task = asyncio.create_task(_typing_loop())
 
     # Prompt kur
     prompt_parts = [
@@ -376,21 +426,26 @@ async def process_message(msg: dict, bot_username: str):
         prompt_parts += ["", "# Not: Dosya yok — sadece soruya cevap ver, dosya null olabilir."]
 
     try:
-        raw = await ask_claude("\n".join(prompt_parts), system=SYSTEM_PROMPT,
-                               files=files or None, cwd=str(WORKDIR))
-        result = parse_ai_json(raw)
-    except ClaudeError as e:
-        logger.error(f"Claude: {e}")
-        await send_reply("⚠️ Sonnet 5'e ulaşılamadı. Sunucuda `claude setup-token` "
-                         "girişini kontrol et (bkz. KURULUM.md §2).", thread_id, msg_id)
-        return
-    except (json.JSONDecodeError, ValueError):
-        # JSON gelmedi — ham cevabı ilet
-        await send_reply(raw[:3900], thread_id, msg_id)
-        return
+        try:
+            raw = await ask_claude("\n".join(prompt_parts), system=SYSTEM_PROMPT,
+                                   files=files or None, cwd=str(WORKDIR))
+            result = parse_ai_json(raw)
+        except ClaudeError as e:
+            logger.error(f"Claude: {e}")
+            await send_reply("⚠️ Sonnet 5'e ulaşılamadı. Sunucuda `claude setup-token` "
+                             "girişini kontrol et (bkz. KURULUM.md §2).", thread_id, msg_id)
+            return
+        except (json.JSONDecodeError, ValueError):
+            # JSON gelmedi — ham cevabı ilet
+            await send_reply(raw[:3900], thread_id, msg_id)
+            return
+    finally:
+        typing_task.cancel()
 
-    cevap = result.get("cevap") or "✅ İşlendi."
+    cevap_ai = result.get("cevap") or "✅ İşlendi."
+    cevap = cevap_ai
     dosya = result.get("dosya")
+    saved_rel = None
     if isinstance(dosya, dict) and AUTO_SAVE:
         saved_rel = save_output_file(dosya)
         if saved_rel:
@@ -405,6 +460,26 @@ async def process_message(msg: dict, bot_username: str):
         cevap += f"\n\n📄 Önerilen kayıt yolu: `{dosya.get('yol')}` (AUTO_SAVE kapalı)"
 
     await send_reply(cevap, thread_id, msg_id)
+
+    # Kaydedilen dosyayı Telegram'a da yükle — teknisyen GitHub hesabı olmadan,
+    # push başarılı/başarısız fark etmeksizin, dosyayı doğrudan bu topic'te görsün.
+    if saved_rel:
+        full_path = REPO_DIR / saved_rel
+        if full_path.exists():
+            await send_document(full_path, thread_id, caption=f"📎 {saved_rel}")
+
+    # Çok dilli çıktı — aynı cevabı EN + TH olarak da paylaş (Lato-Trans_bot'u
+    # besleyen aynı çeviri motoru, ayrı ağır servis kurmadan bu süreçte çağrılıyor).
+    if TRANSLATE_ON and translate_text is not None and cevap_ai.strip():
+        try:
+            translations = await asyncio.to_thread(translate_text, cevap_ai, "tr", TARGET_LANGS)
+        except Exception as e:
+            logger.warning(f"Çeviri hatası: {e}")
+            translations = {}
+        for lang in TARGET_LANGS:
+            t = translations.get(lang)
+            if t:
+                await send_reply(f"{LANG_LABEL[lang]}:\n{t}", thread_id)
 
     # Geçici dosyaları temizle
     for f in files:

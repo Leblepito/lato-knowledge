@@ -11,12 +11,20 @@ Telegram Topic (#130-135)
    │  📄 md/txt/csv  📸 foto  📕 pdf  💬 @mention veya /lato
    ▼
 lato_telegram_bot.py
+   ├─ "🔍 Alındı, inceliyorum..." anında onay + "yazıyor" göstergesi (4sn'de bir yenilenir)
    ├─ topic → departman eşleme
    ├─ bağlam: departman README + dil paketi (tr.md) + şablonlar + spec
    ├─ Claude Sonnet 5 (claude_client.py: CLI → API → OpenRouter sırası)
    ▼
-Aynı topic'e cevap + bilgi bankasına kayıt (departmanlar/<slug>/olaylar|envanter|hesaplar/...)
+Aynı topic'e: TR cevap + kaydedilen dosya (Telegram'a doğrudan yüklenir, GitHub gerekmez)
+   ▼
+translation_engine.py (aynı süreç, ek servis yok) → 🇬🇧 EN + 🇹🇭 TH takip mesajı
+   ▼
+Bilgi bankasına kayıt (departmanlar/<slug>/olaylar|envanter|hesaplar/...) + GitHub push
 ```
+
+Not: girdi + kalıcı kayıt Türkçe kalır (audit-trail tek dilde tutarlı); sadece
+Telegram'daki **cevap** teknisyen için EN/TH'ye çevrilir (`LATO_TRANSLATE=0` ile kapatılabilir).
 
 ## Departman Çıktı Profilleri
 
@@ -65,6 +73,7 @@ journalctl -u lato-telegram-bot -f      # log takibi
 | `GITHUB_TOKEN` | — | push-back için PAT (Contents RW, sadece bu repo) |
 | `LATO_CRON` | `1` | gömülü cron bültenleri (0 = kapat) |
 | `LATO_GROUP_ID` | `-1003776134843` | Telegram grup |
+| `LATO_TRANSLATE` | `1` | cevabı EN+TH olarak da paylaş (0 = kapat, sadece TR) |
 | `ANTHROPIC_API_KEY` | — | opsiyonel ücretli fallback |
 | `OPENROUTER_API_KEY` | — | opsiyonel ücretli fallback (yine Sonnet 5) |
 
@@ -75,6 +84,10 @@ journalctl -u lato-telegram-bot -f      # log takibi
   takılırsa bot fallback'e geçer (key tanımlıysa) veya hata mesajı verir.
 - Bot mesajlarını sırayla işler (tek worker) — kota ve CLI süreç yığılması koruması.
 - Kaydedilen dosyalar sadece `departmanlar/` altına yazılır (path traversal korumalı);
-  commit/push manuel (AGENTS.md kural 4 — Leb onayı).
-- Voice mesaj bu botta kapsam dışı — #146'daki @Latotranslate_bot'a atın.
+  commit/push otomatik (`LATO_GIT_PUSH=1`) — aynı dosya ayrıca Telegram'a da
+  belge olarak yüklenir, teknisyen GitHub'a girmeden görür.
+- **Çeviri**: `ceviri-sistemi/src/translation_engine.py` doğrudan bu süreçte
+  çağrılır (claude CLI → ücretsiz); @Latotranslate_bot'un ses/PTT servisi ayrı ve
+  şu an Railway'de deploy edilmedi (bkz. AGENTS.md § Çeviri Sistemi). Voice mesaj
+  hâlâ bu botta kapsam dışı.
 - Eski LINE köprüsü **deprecated**: `line-bot/` artık kurulum gerektirmiyor.
