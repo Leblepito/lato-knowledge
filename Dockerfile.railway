@@ -9,9 +9,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     npm install -g @anthropic-ai/claude-code && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir "httpx>=0.27" tzdata "openai>=1.0"
+RUN pip install --no-cache-dir "httpx>=0.27" tzdata "openai>=1.0" "edge-tts>=6.1.0"
 # openai paketi: ceviri-sistemi/src/translation_engine.py'nin fallback client'ı için
 # (asıl çeviri claude CLI ile ücretsiz gider — openai sadece o yoksa devreye girer).
+# edge-tts: Tayca sesli çıktı için — Microsoft Edge TTS, ücretsiz, API key gerekmez.
 
 WORKDIR /app
 COPY . .

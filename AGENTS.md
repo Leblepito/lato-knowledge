@@ -86,9 +86,16 @@ Personel input dosyasını (md/txt/csv/foto/pdf) doğrudan departman topic'ine a
 **hangi bölüme atılırsa çıktı o departmana göre** hazırlanır (Sonnet 5).
 
 - **Topic → departman**: 130-135 eşlemesi, bağlam = README + dil paketi + şablon + spec
+- **#1 Genel → otomatik yönlendirme**: departman belirtmeden #1'e atılan dosya,
+  ayrı bir Claude çağrısıyla (`classify_department`) doğru departmana sınıflandırılır,
+  orijinal mesaj `copyMessage` ile o topic'e taşınır, çıktı O departmanın gerçek
+  bağlamıyla (README+dil paketi+spec) üretilir — doğrudan atmakla aynı kalite,
+  sadece 2 Claude çağrısı olduğu için biraz daha yavaş. Departman gerçekten
+  belirsizse dosya #1'de kalır, kısa özet + öneri verilir.
 - **Çıktı**: olay kaydı / envanter kartı / hesap / fatura mutabakatı / HACCP kontrol
-- **Çok dilli çıktı**: TR cevaptan sonra aynı çıktı EN + TH olarak da otomatik
-  paylaşılır (`translation_engine.py`, aynı süreç içinde, ek servis yok)
+- **Çok dilli çıktı**: TR cevaptan sonra aynı çıktı **TR+EN metin dosyası (.txt)**
+  ve **TH sesli dosya (.mp3, edge-tts — ücretsiz, key gerekmez)** olarak paylaşılır
+  (`translation_engine.py` + `edge-tts`, aynı süreç içinde, ek servis yok)
 - **Kayıt görünürlüğü**: bilgi bankasına yazılan dosya GitHub'a push'lanmasının
   yanında, aynı Telegram topic'ine **dosya olarak da yüklenir** — teknisyenin
   GitHub erişimi olmasa da kaydı doğrudan görür

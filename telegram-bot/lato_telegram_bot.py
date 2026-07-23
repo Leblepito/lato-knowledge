@@ -23,6 +23,7 @@ import asyncio
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -56,10 +57,10 @@ AUTO_SAVE = os.environ.get("LATO_AUTO_SAVE", "1") == "1"   # üretilen dosyayı 
 WORKDIR = Path(os.environ.get("LATO_WORKDIR", "/tmp/lato-inbox"))
 OFFSET_FILE = WORKDIR / "offset.txt"
 
-# ── Çok dilli çıktı ──────────────────────────────────────────────────
+# ── Çok dilli çıktı: TR+EN metin dosyası, TH sesli dosya (edge-tts) ────
 TRANSLATE_ON = os.environ.get("LATO_TRANSLATE", "1") == "1"
 TARGET_LANGS = ["en", "th"]
-LANG_LABEL = {"en": "🇬🇧 English", "th": "🇹🇭 ภาษาไทย"}
+LANG_LABEL_TXT = {"tr": "TR (metin)", "en": "EN (text)", "th": "TH (เสียง/ses)"}
 
 # ── Bekleme UX: uzun Claude çağrısı boyunca "yazıyor" göstergesini canlı tut
 TYPING_REFRESH_SEC = 4
@@ -236,6 +237,38 @@ Kurallar:
 "dosya" alanı: kalıcı kayıt gerekiyorsa doldur (şablon formatında), gerekmiyorsa null.
 "yol" mutlaka departmanlar/ ile başlamalı."""
 
+# ── #1 Genel'e atılan girdiyi doğru departmana yönlendirme ─────────
+ROUTER_DEPT_LIST = "\n".join(
+    f"{tid} {d['name']} — {d['cikti'][:90]}"
+    for tid, d in DEPARTMENTS.items() if tid != 1
+)
+
+async def classify_department(instruction: str, files: list[str] | None) -> tuple[int | None, str]:
+    """#1 Genel'e atılan girdinin hangi departmana ait olduğuna karar ver.
+    Ayrı/hafif bir sınıflandırma çağrısı — asıl üretim, doğru departman bağlamıyla
+    (README+dil paketi+spec) ikinci bir ask_claude çağrısında yapılır."""
+    prompt = (f"Girdi talimatı/metni: {instruction or '(yok — sadece ekli dosya/foto var)'}\n\n"
+              f"Departmanlar:\n{ROUTER_DEPT_LIST}\n\n"
+              "Bu girdi hangi departmana ait? Ekli foto/dosya varsa mutlaka incele. "
+              'SADECE şu JSON\'u dön (başka metin yazma): '
+              '{"departman_id": <130-135 arası sayı, veya gerçekten belirsizse null>, '
+              '"sebep": "kısa gerekçe, tek cümle"}')
+    try:
+        raw = await ask_claude(
+            prompt,
+            system="Sen bir otel departman yönlendirme sınıflandırıcısısın. "
+                   "Başka açıklama yazma, sadece istenen JSON'u dön.",
+            files=files, cwd=str(WORKDIR), timeout=90)
+        data = parse_ai_json(raw)
+        did = data.get("departman_id")
+        did = int(did) if did not in (None, "null", "") else None
+        if did not in DEPARTMENTS or did == 1:
+            did = None
+        return did, str(data.get("sebep") or "").strip()
+    except Exception as e:
+        logger.warning(f"Departman sınıflandırma hatası: {e}")
+        return None, ""
+
 # ── Telegram API ───────────────────────────────────────────────────
 async def tg(method: str, _http_timeout: int = 65, **params):
     """_http_timeout: httpx istemci zaman aşımı (isim çakışmasın diye ayrı) —
@@ -282,6 +315,48 @@ async def send_document(path: Path, thread_id: int, caption: str = "", reply_to:
     except Exception as e:
         logger.error(f"sendDocument hatası: {e}")
         return {"ok": False}
+
+async def send_audio(path: Path, thread_id: int, caption: str = "", title: str | None = None):
+    """Tayca sesli çıktıyı Telegram'a audio olarak yükle (edge-tts mp3)."""
+    try:
+        data = {"chat_id": str(GROUP_ID), "message_thread_id": str(thread_id)}
+        if caption:
+            data["caption"] = caption[:1024]
+        if title:
+            data["title"] = title[:64]
+        async with httpx.AsyncClient(timeout=60) as c:
+            with open(path, "rb") as f:
+                r = await c.post(f"{TG_API}/sendAudio", data=data,
+                                 files={"audio": (path.name, f, "audio/mpeg")})
+        res = r.json()
+        if not res.get("ok"):
+            logger.error(f"TG sendAudio: {str(res)[:200]}")
+        return res
+    except Exception as e:
+        logger.error(f"sendAudio hatası: {e}")
+        return {"ok": False}
+
+async def synthesize_thai_speech(text: str, dest: Path) -> Path | None:
+    """edge-tts (ücretsiz, API key gerekmez) ile Tayca ses üret — Telegram sendAudio için mp3.
+    edge-tts kurulu değilse/başarısızsa sessizce None döner, akışı bloklamaz."""
+    edge_bin = shutil.which("edge-tts")
+    if not edge_bin:
+        logger.warning("edge-tts CLI bulunamadı — Tayca ses atlanıyor (pip install edge-tts)")
+        return None
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            edge_bin, "--voice", "th-TH-PremwadeeNeural", "--text", text[:2000],
+            "--write-media", str(dest),
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        _, err = await asyncio.wait_for(proc.communicate(), timeout=45)
+        if proc.returncode != 0 or not dest.exists() or dest.stat().st_size < 200:
+            logger.warning(f"edge-tts başarısız: {err.decode(errors='ignore')[:150]}")
+            return None
+        return dest
+    except Exception as e:
+        logger.warning(f"Tayca TTS hatası: {e}")
+        return None
 
 async def download_file(file_id: str, dest: Path) -> Path | None:
     info = await tg("getFile", file_id=file_id)
@@ -399,7 +474,11 @@ async def process_message(msg: dict, bot_username: str):
 
     # Anında geri bildirim — Claude çağrısı 30-90sn sürebilir, "yazıyor" göstergesi
     # tek başına ~5sn'de kaybolduğu için kullanıcı botun cevap vermediğini sanıyordu.
-    await send_reply("🔍 Alındı, inceliyorum... (biraz sürebilir, bekleyin)", thread_id, msg_id)
+    will_route = thread_id == 1 and has_input
+    ack = ("🔍 Alındı, hangi departmana ait olduğunu belirleyip inceliyorum... "
+           "(iki adımlı, biraz daha sürebilir)") if will_route else \
+          "🔍 Alındı, inceliyorum... (biraz sürebilir, bekleyin)"
+    await send_reply(ack, thread_id, msg_id)
 
     async def _typing_loop():
         while True:
@@ -409,23 +488,40 @@ async def process_message(msg: dict, bot_username: str):
 
     typing_task = asyncio.create_task(_typing_loop())
 
-    # Prompt kur
-    prompt_parts = [
-        f"# Departman: {dept['name']} (Telegram topic #{thread_id})",
-        f"# Gönderen: {user} | Tarih: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-        f"# Bu departman için çıktı talimatı:\n{dept['cikti']}",
-        "",
-        "# Departman bağlamı:",
-        build_context(dept),
-    ]
-    if inline_docs:
-        prompt_parts += [""] + inline_docs
-    if instruction:
-        prompt_parts += ["", f"# Kullanıcının talimatı/mesajı:\n{instruction}"]
-    if not has_input:
-        prompt_parts += ["", "# Not: Dosya yok — sadece soruya cevap ver, dosya null olabilir."]
+    active_dept = dept
+    target_thread_id = thread_id
+    route_note = None
+    tr_txt_path = en_txt_path = th_audio_path = None
 
     try:
+        # #1 Genel'e dosya atıldıysa → önce hangi departmana ait olduğuna karar ver,
+        # sonra üretimi O departmanın gerçek bağlamıyla (README+dil paketi+spec) yap.
+        if will_route:
+            did, sebep = await classify_department(instruction, files or None)
+            if did:
+                active_dept = DEPARTMENTS[did]
+                target_thread_id = did
+                route_note = f"🔀 *{active_dept['name']}* (#{did}) konusuna yönlendirildi" + \
+                             (f"\n_{sebep}_" if sebep else "")
+
+        # Prompt kur
+        prompt_parts = [
+            f"# Departman: {active_dept['name']} (Telegram topic #{target_thread_id})",
+            f"# Gönderen: {user} | Tarih: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            f"# Bu departman için çıktı talimatı:\n{active_dept['cikti']}",
+            "",
+            "# Departman bağlamı:",
+            build_context(active_dept),
+        ]
+        if target_thread_id != thread_id:
+            prompt_parts.insert(1, f"# Not: Bu girdi #1 Genel'den buraya yönlendirildi.")
+        if inline_docs:
+            prompt_parts += [""] + inline_docs
+        if instruction:
+            prompt_parts += ["", f"# Kullanıcının talimatı/mesajı:\n{instruction}"]
+        if not has_input:
+            prompt_parts += ["", "# Not: Dosya yok — sadece soruya cevap ver, dosya null olabilir."]
+
         try:
             raw = await ask_claude("\n".join(prompt_parts), system=SYSTEM_PROMPT,
                                    files=files or None, cwd=str(WORKDIR))
@@ -439,47 +535,73 @@ async def process_message(msg: dict, bot_username: str):
             # JSON gelmedi — ham cevabı ilet
             await send_reply(raw[:3900], thread_id, msg_id)
             return
+
+        cevap_ai = result.get("cevap") or "✅ İşlendi."
+        cevap = cevap_ai
+        dosya = result.get("dosya")
+        saved_rel = None
+        if isinstance(dosya, dict) and AUTO_SAVE:
+            saved_rel = save_output_file(dosya)
+            if saved_rel:
+                cevap += f"\n\n💾 Bilgi bankasına kaydedildi: `{saved_rel}`"
+                if GIT_PUSH:
+                    pushed = await asyncio.to_thread(git_push_record_sync, saved_rel)
+                    cevap += " ☁️ GitHub'a push edildi" if pushed \
+                             else " ⚠️ (GitHub push başarısız — log'a bak)"
+            elif dosya.get("yol"):
+                cevap += f"\n\n⚠️ Dosya kaydedilemedi (geçersiz yol): {dosya.get('yol')}"
+        elif isinstance(dosya, dict) and not AUTO_SAVE:
+            cevap += f"\n\n📄 Önerilen kayıt yolu: `{dosya.get('yol')}` (AUTO_SAVE kapalı)"
+
+        # Çok dilli çıktı — TR + EN metin dosyası, TH sesli dosya (edge-tts, ücretsiz).
+        # Aynı çeviri motoru Lato-Trans_bot'u da besler; burada ayrı servis kurulmadan
+        # doğrudan çağrılıyor.
+        if TRANSLATE_ON and translate_text is not None and cevap_ai.strip():
+            ts = datetime.now().strftime("%H%M%S")
+            base = f"{msg_id}-{ts}"
+            try:
+                translations = await asyncio.to_thread(translate_text, cevap_ai, "tr", TARGET_LANGS)
+            except Exception as e:
+                logger.warning(f"Çeviri hatası: {e}")
+                translations = {}
+
+            tr_txt_path = WORKDIR / f"{base}-TR.txt"
+            tr_txt_path.write_text(cevap_ai, encoding="utf-8")
+
+            if translations.get("en"):
+                en_txt_path = WORKDIR / f"{base}-EN.txt"
+                en_txt_path.write_text(translations["en"], encoding="utf-8")
+
+            if translations.get("th"):
+                th_audio_path = await synthesize_thai_speech(
+                    translations["th"], WORKDIR / f"{base}-TH.mp3")
     finally:
         typing_task.cancel()
 
-    cevap_ai = result.get("cevap") or "✅ İşlendi."
-    cevap = cevap_ai
-    dosya = result.get("dosya")
-    saved_rel = None
-    if isinstance(dosya, dict) and AUTO_SAVE:
-        saved_rel = save_output_file(dosya)
-        if saved_rel:
-            cevap += f"\n\n💾 Bilgi bankasına kaydedildi: `{saved_rel}`"
-            if GIT_PUSH:
-                pushed = await asyncio.to_thread(git_push_record_sync, saved_rel)
-                cevap += " ☁️ GitHub'a push edildi" if pushed \
-                         else " ⚠️ (GitHub push başarısız — log'a bak)"
-        elif dosya.get("yol"):
-            cevap += f"\n\n⚠️ Dosya kaydedilemedi (geçersiz yol): {dosya.get('yol')}"
-    elif isinstance(dosya, dict) and not AUTO_SAVE:
-        cevap += f"\n\n📄 Önerilen kayıt yolu: `{dosya.get('yol')}` (AUTO_SAVE kapalı)"
+    # ── Teslimat: yönlendirilmişse hedef departman topic'ine, değilse aynı yere ──
+    if target_thread_id != thread_id:
+        if route_note:
+            await send_reply(route_note, thread_id, msg_id)
+        await tg("copyMessage", chat_id=GROUP_ID, from_chat_id=GROUP_ID,
+                 message_id=msg_id, message_thread_id=target_thread_id, _http_timeout=20)
 
-    await send_reply(cevap, thread_id, msg_id)
+    reply_to_final = msg_id if target_thread_id == thread_id else None
+    await send_reply(cevap, target_thread_id, reply_to_final)
 
     # Kaydedilen dosyayı Telegram'a da yükle — teknisyen GitHub hesabı olmadan,
     # push başarılı/başarısız fark etmeksizin, dosyayı doğrudan bu topic'te görsün.
     if saved_rel:
         full_path = REPO_DIR / saved_rel
         if full_path.exists():
-            await send_document(full_path, thread_id, caption=f"📎 {saved_rel}")
+            await send_document(full_path, target_thread_id, caption=f"📎 {saved_rel}")
 
-    # Çok dilli çıktı — aynı cevabı EN + TH olarak da paylaş (Lato-Trans_bot'u
-    # besleyen aynı çeviri motoru, ayrı ağır servis kurmadan bu süreçte çağrılıyor).
-    if TRANSLATE_ON and translate_text is not None and cevap_ai.strip():
-        try:
-            translations = await asyncio.to_thread(translate_text, cevap_ai, "tr", TARGET_LANGS)
-        except Exception as e:
-            logger.warning(f"Çeviri hatası: {e}")
-            translations = {}
-        for lang in TARGET_LANGS:
-            t = translations.get(lang)
-            if t:
-                await send_reply(f"{LANG_LABEL[lang]}:\n{t}", thread_id)
+    if tr_txt_path:
+        await send_document(tr_txt_path, target_thread_id, caption=f"📄 {LANG_LABEL_TXT['tr']}")
+    if en_txt_path:
+        await send_document(en_txt_path, target_thread_id, caption=f"📄 {LANG_LABEL_TXT['en']}")
+    if th_audio_path:
+        await send_audio(th_audio_path, target_thread_id, caption=f"🔊 {LANG_LABEL_TXT['th']}",
+                         title=f"{active_dept.get('slug') or 'lato'}-th")
 
     # Geçici dosyaları temizle
     for f in files:
@@ -487,6 +609,12 @@ async def process_message(msg: dict, bot_username: str):
             os.unlink(f)
         except OSError:
             pass
+    for p in (tr_txt_path, en_txt_path, th_audio_path):
+        if p:
+            try:
+                Path(p).unlink()
+            except OSError:
+                pass
 
 # ── Gömülü cron (Railway'de ayrı servis gerekmesin) ────────────────
 # LATO_CRON=1 (varsayılan): otomasyon bültenleri bot süreci içinde zamanlanır.

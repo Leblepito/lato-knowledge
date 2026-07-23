@@ -60,7 +60,9 @@ Port/domain ayarı GEREKMEZ — bot polling ile çalışır, inbound trafik yok.
 - [ ] #131'e arıza fotoğrafı → birkaç saniye içinde `🔍 Alındı, inceliyorum...` onayı,
       ardından TR olay kaydı + `💾 kaydedildi ... ☁️ GitHub'a push edildi`
 - [ ] Kaydedilen dosya aynı topic'e **belge olarak da** düşüyor (GitHub açmadan görülür)
-- [ ] TR cevabın ardından `🇬🇧 English` ve `🇹🇭 ภาษาไทย` takip mesajları geliyor
+- [ ] TR cevabın ardından `📄 TR.txt`, `📄 EN.txt` ve `🔊 TH.mp3` (sesli) dosyaları geliyor
+- [ ] #1 Genel'e (departman belirtmeden) bir fotoğraf at → `🔀 ... konusuna yönlendirildi`
+      mesajı + fotoğraf doğru departman topic'ine taşınıyor + çıktı orada üretiliyor
 - [ ] GitHub'da commit görünüyor: `kayit: departmanlar/teknik-bakim/olaylar/...`
 - [ ] #133'e fatura fotoğrafı → firma/tutar/tarih özeti
 - [ ] Ertesi sabah 08:00 (Phuket) → #132'ye günlük bülten düştü
