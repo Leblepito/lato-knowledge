@@ -1,12 +1,37 @@
 #!/usr/bin/env python3
-"""Translation Engine — OpenAI GPT ile çok dilli çeviri."""
+"""Translation Engine — Claude Sonnet 5 ile çok dilli çeviri.
+
+Öncelik: claude CLI (abonelik — token ücreti YOK) → OpenRouter API fallback (yine Sonnet 5).
+"""
 import logging
+import os
 import re
+import shutil
+import subprocess
 from openai import OpenAI
 import config
 
 logger = logging.getLogger(__name__)
 _client = None
+
+
+def _translate_via_cli(system_prompt: str, user_prompt: str) -> str | None:
+    """claude CLI ile çeviri (Claude Pro/Max aboneliği — ücretsiz). Yoksa None."""
+    claude_bin = shutil.which("claude")
+    if not claude_bin or os.environ.get("LATO_DISABLE_CLI") == "1":
+        return None
+    try:
+        model = config.TRANSLATION_MODEL.split("/")[-1]  # CLI bare ID ister
+        r = subprocess.run(
+            [claude_bin, "-p", "--model", model, "--output-format", "text",
+             "--append-system-prompt", system_prompt],
+            input=user_prompt.encode(), capture_output=True, timeout=90)
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.decode(errors="ignore").strip()
+        logger.warning(f"CLI çeviri rc={r.returncode}: {r.stderr.decode(errors='ignore')[:150]}")
+    except Exception as e:
+        logger.warning(f"CLI çeviri hatası: {e}")
+    return None
 
 
 def get_client() -> OpenAI:
@@ -77,15 +102,20 @@ Her çeviriyi şu formatta ver:
 Metin: {text}"""
 
     try:
-        response = client.chat.completions.create(
-            model=config.TRANSLATION_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.2,
-        )
-        raw = response.choices[0].message.content.strip()
+        # 1) claude CLI — abonelik, ücretsiz
+        raw = _translate_via_cli(system_prompt, user_prompt)
+
+        # 2) API fallback (OpenRouter — yine Sonnet 5)
+        if raw is None:
+            response = client.chat.completions.create(
+                model=config.TRANSLATION_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.2,
+            )
+            raw = response.choices[0].message.content.strip()
 
         # Parse [lang] text format
         for match in re.finditer(r'\[(\w+)\]\s*(.+?)(?=\[\w+\]|$)', raw, re.DOTALL):

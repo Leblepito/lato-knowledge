@@ -41,35 +41,51 @@ logger = logging.getLogger("lato-auto")
 # ── Config ─────────────────────────────────────────────────────────
 BOT_TOKEN = os.environ.get("TRANSLATE_BOT_TOKEN", os.environ.get("TELEGRAM_BOT_TOKEN", ""))
 TG_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
-OR_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-OR_MODEL = "openai/gpt-4o-mini"
 ELEVEN_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 ELEVEN_VOICE = "EXAVITQu4vr4xnTf7T8s"  # Sarah — multilingual
 
+# AI: sadece Claude Sonnet 5 — abonelik (claude CLI) öncelikli, ücretsiz.
+# Detay: telegram-bot/claude_client.py
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "telegram-bot"))
+from claude_client import ask_claude, ClaudeError  # noqa: E402
+
+if not BOT_TOKEN:
+    logger.warning("⚠️ TRANSLATE_BOT_TOKEN / TELEGRAM_BOT_TOKEN tanımsız — Telegram gönderimleri başarısız olur")
+
 # Türkçe karakterler için Telegram Markdown escape
 def md_escape(text: str) -> str:
-    """Telegram MarkdownV1 için güvenli metin."""
-    # Sadece * ve _ kaçır (biz bold için * kullanıyoruz)
-    return text.replace("*", "").replace("`", "")
+    """Telegram MarkdownV1 parse hatasında düz metin fallback (* ` _ temizle)."""
+    return text.replace("*", "").replace("`", "").replace("_", "")
 
 # ── Telegram ───────────────────────────────────────────────────────
 async def send_message(text: str, topic_id: int = TOPIC_OPS) -> bool:
+    """Markdown gönder; parse hatasında düz metin, 429'da retry_after bekleyip tekrar dene."""
     try:
         async with httpx.AsyncClient(timeout=15) as c:
-            resp = await c.post(f"{TG_API}/sendMessage", json={
-                "chat_id": GROUP_CHAT_ID, "message_thread_id": topic_id,
-                "text": text, "parse_mode": "Markdown",
-            })
-            if resp.status_code != 200:
+            for _attempt in range(3):
+                resp = await c.post(f"{TG_API}/sendMessage", json={
+                    "chat_id": GROUP_CHAT_ID, "message_thread_id": topic_id,
+                    "text": text, "parse_mode": "Markdown",
+                })
+                if resp.status_code == 200:
+                    return True
                 err = resp.text[:200]
                 logger.error(f"TG {resp.status_code}: {err}")
-                if "parse" in err.lower() or "can't parse" in err.lower():
+                if resp.status_code == 429:  # rate limit
+                    try:
+                        wait = resp.json().get("parameters", {}).get("retry_after", 3)
+                    except Exception:
+                        wait = 3
+                    await asyncio.sleep(min(wait, 30))
+                    continue
+                if "parse" in err.lower():   # Markdown hatası → düz metin
                     resp2 = await c.post(f"{TG_API}/sendMessage", json={
                         "chat_id": GROUP_CHAT_ID, "message_thread_id": topic_id,
                         "text": md_escape(text),
                     })
                     return resp2.status_code == 200
-            return resp.status_code == 200
+                return False
+            return False
     except Exception as e:
         logger.error(f"TG exception: {e}")
         return False
@@ -127,16 +143,13 @@ async def _tts(text: str) -> str | None:
         logger.error(f"Edge TTS failed: {e}")
         return None
 
-# ── AI ─────────────────────────────────────────────────────────────
-async def ai_analyze(system_prompt: str, user_prompt: str, timeout: int = 30) -> str:
+# ── AI (Claude Sonnet 5 — abonelik/CLI öncelikli, ücretsiz) ────────
+async def ai_analyze(system_prompt: str, user_prompt: str, timeout: int = 120) -> str:
     try:
-        async with httpx.AsyncClient(timeout=timeout) as c:
-            r = await c.post("https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {OR_KEY}"},
-                json={"model": OR_MODEL, "temperature": 0.3,
-                      "messages": [{"role": "system", "content": system_prompt},
-                                   {"role": "user", "content": user_prompt}]})
-            return r.json()["choices"][0]["message"]["content"]
+        return (await ask_claude(user_prompt, system=system_prompt, timeout=timeout)).strip()
+    except ClaudeError as e:
+        logger.error(f"AI (Sonnet 5): {e}")
+        return ""
     except Exception as e:
         logger.error(f"AI: {e}")
         return ""
@@ -283,19 +296,24 @@ async def check_bureaucratic_deadlines():
     dom = today.day
     alerts = []
 
-    if 8 <= dom <= 16:
+    if 8 <= dom <= 15:  # son gün 15 — negatif gün üretme
         d = 15 - dom
         alerts.append(("VAT PP30 Beyannamesi", d, "2,000 THB + %1.5/ay faiz", "Revenue Department"))
         alerts.append(("SSO (Sosyal Sigorta)", d, "5,000 THB/personel", "Social Security Office"))
 
-    if 20 <= dom <= 27:
+    if 20 <= dom <= 25:  # son gün 25
         d = 25 - dom
         alerts.append(("Personel Bordro Hazırlığı", d, "Maaş gecikmesi riski", "Otel Yönetimi"))
 
-    # 3 ayda bir — PND 50 (kurumsar gelir vergisi)
-    if dom <= 15 and today.month in [3, 6, 9, 12]:
-        d = 15 - dom
-        alerts.append(("PND 50 Kurumlar Vergisi", d, "%20 vergi + gecikme", "Revenue Department"))
+    # PND 50 — yıllık kurumlar vergisi: mali yıl sonu (31 Ara) + 150 gün ≈ 30 Mayıs
+    if today.month == 5 and 16 <= dom <= 30:
+        d = 30 - dom
+        alerts.append(("PND 50 Kurumlar Vergisi (yıllık)", d, "%20 vergi + gecikme faizi", "Revenue Department"))
+
+    # PND 51 — yarıyıl beyannamesi: son gün 31 Ağustos
+    if today.month == 8 and 17 <= dom <= 31:
+        d = 31 - dom
+        alerts.append(("PND 51 Yarıyıl Beyannamesi", d, "%20 ceza + faiz", "Revenue Department"))
 
     if not alerts:
         logger.info("✅ Bürokratik: bu hafta deadline yok")
@@ -531,16 +549,17 @@ async def check_reconciliation():
 # ════════════════════════════════════════════════════════════════════
 async def ota_review_monitor():
     logger.info("⭐ OTA yorum analizi...")
+    # TODO: Booking/Agoda scraping bağlanana kadar mock veri (slug'lar gerçek 7 otel)
     mock_reviews = [
-        {"hotel": "brook-pool", "platform": "Booking.com", "rating": 9.2,
+        {"hotel": "brook-pool-resort", "platform": "Booking.com", "rating": 9.2,
          "text": "Amazing pool, great staff. Room was clean. Will come back!"},
-        {"hotel": "brook-pool", "platform": "Agoda", "rating": 8.8,
+        {"hotel": "brook-pool-resort", "platform": "Agoda", "rating": 8.8,
          "text": "Nice boutique hotel. AC was a bit loud but everything else perfect."},
         {"hotel": "trend-kamala", "platform": "Booking.com", "rating": 7.5,
          "text": "Good location but room needs renovation. Staff friendly."},
         {"hotel": "case-del-sol", "platform": "Agoda", "rating": 9.5,
          "text": "Loved the villa! Private pool was amazing. Worth every baht."},
-        {"hotel": "patong-heritage", "platform": "Booking.com", "rating": 6.8,
+        {"hotel": "natural-resort", "platform": "Booking.com", "rating": 6.8,
          "text": "Noisy at night. Room was not clean on arrival. Disappointed."},
     ]
 

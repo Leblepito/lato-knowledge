@@ -21,13 +21,18 @@ Sorgu geldiğinde `lato-departman-router` skill'i doğru departmana yönlendirir
 
 ```
 departmanlar/
+├── INPUT-REHBERI.md    → 📥 input dosyası yapılış rehberi (BURADAN BAŞLA)
+├── _sablonlar/         → olay / hesap / envanter şablonları + örnek
 ├── elektrik-havuz/     → olaylar, hesaplar, envanter
 ├── teknik-bakim/       → bakım planları, arıza kayıtları
 ├── operasyon/          → occupancy raporları, güvenlik logları
-├── satin-alma/         → PO kayıtları, stok raporları
+├── satin-alma/         → PO kayıtları, stok raporları, satin-alinacaklar.md
 ├── fnb/                → menü, HACCP logları, ekipman envanteri
 └── it-muhasebe/        → ağ şemaları, mali raporlar
 ```
+
+Input dosyası nasıl yazılır (özellikle teknik ekip): **[`INPUT-REHBERI.md`](INPUT-REHBERI.md)**
+Aktif alım listesi: [`satin-alma/envanter/satin-alinacaklar.md`](satin-alma/envanter/satin-alinacaklar.md)
 
 ## Referans Repolar
 

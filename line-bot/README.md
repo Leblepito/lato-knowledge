@@ -1,4 +1,11 @@
-# 📱 Lato LINE Bot — Otel Personeli İletişim Köprüsü
+# 📱 Lato LINE Bot — ⚠️ DEPRECATED (2026-07-23)
+
+> **Bu köprü devre dışı.** Karar: her şey Telegram içinde çalışacak.
+> Yeni sistem: [`../telegram-bot/`](../telegram-bot/) — personel input dosyasını
+> doğrudan departman topic'ine atar, Sonnet 5 departmana göre çıktı üretir.
+> Aşağıdaki dokümantasyon arşiv amaçlı tutulmaktadır — **deploy etmeyin**.
+
+---
 
 > Tayland'da personel LINE kullanır. Bu bot LINE mesajlarını AI ile sınıflandırır,
 > Telegram'a aktarır ve departmanlara yönlendirir.
@@ -12,26 +19,27 @@ Tayland Personel (LINE App)
    LINE Messaging API (Webhook)
         │
         ▼
-  ┌─────────────────────────────┐
-  │   lato-line-bot (Port 8089) │
-  │                             │
-  │  1. Mesaj al (text/foto/voice)│
-  │  2. AI sınıflandır (GPT-4o)  │
-  │     - mesaj tipi              │
-  │     - departman               │
-  │     - öncelik                 │
-  │     - dil + çeviri            │
-  │  3. Foto → OCR (Gemini)       │
-  │  4. Telegram'e aktar          │
-  │  5. LINE'a onay mesajı        │
-  └─────────────────────────────┘
+  ┌──────────────────────────────────┐
+  │   lato-line-bot (Port 8089)      │
+  │                                  │
+  │  1. Mesaj al (text/foto/voice)   │
+  │  2. AI sınıflandır               │
+  │     (Claude Sonnet 5, OpenRouter)│
+  │     - mesaj tipi / departman     │
+  │     - öncelik / dil + çeviri     │
+  │  3. Foto → OCR (Gemini)          │
+  │  4. Telegram'e aktar             │
+  │  5. LINE'a onay mesajı           │
+  └──────────────────────────────────┘
         │
         ▼
   Telegram Phuket-Lato Grubu
-  ├── #130 ⚡ Teknik (havuz/klima/elektrik)
-  ├── #132 🛎️ Operasyon (resepsiyon/HK)
-  ├── #133 📦 Muhasebe (fatura/ödemeler)
-  └── #134 🍽️ F&B (mutfak)
+  ├── #130 ⚡ Elektrik & Havuz (pano/pompa/jeneratör)
+  ├── #131 🔧 Teknik Bakım (klima/tesisat/onarım)
+  ├── #132 🛎️ Operasyon (resepsiyon/HK/güvenlik)
+  ├── #133 📦 Satın Alma (fatura/ödemeler)
+  ├── #134 🍽️ F&B (mutfak)
+  └── #135 💻 IT & Muhasebe (WiFi/PMS)
 ```
 
 ## Özellikler
@@ -60,11 +68,13 @@ Tayland Personel (LINE App)
 ### Departman Yönlendirme
 | LINE Mesaj İçeriği | Departman | Telegram Topic |
 |---|---|---|
-| Havuz, klima, elektrik, pompa | TEKNIK | #130 |
+| Elektrik, pano, havuz, pompa, jeneratör | ELEKTRIK | #130 |
+| Klima/AC, tesisat, su kaçağı, onarım | TEKNIK | #131 |
 | Oda, temizlik, çarşaf, havlu | HK | #132 |
 | Misafir, check-in, rezervasyon | ON_BURO | #132 |
 | Fatura, ödeme, para | MUHASEBE | #133 |
 | Yemek, kahvaltı, mutfak | FB | #134 |
+| WiFi, internet, PMS, bilgisayar | IT | #135 |
 
 ## Kurulum
 
@@ -82,9 +92,10 @@ Tayland Personel (LINE App)
 ### 2. Environment Variables
 ```bash
 LINE_CHANNEL_ACCESS_TOKEN=*** token>
-LINE_CHANNEL_SECRET=*** secret>
+LINE_CHANNEL_SECRET=*** secret>          # boşsa webhook REDDEDİLİR (LINE_ALLOW_INSECURE=1 sadece dev)
 TRANSLATE_BOT_TOKEN=*** (mevcut)
 OPENROUTER_API_KEY=*** (mevcut)
+LATO_AI_MODEL=anthropic/claude-sonnet-5  # sınıflandırma modeli (varsayılan)
 GOOGLE_API_KEY=*** (mevcut, Gemini OCR için)
 ```
 
@@ -124,9 +135,11 @@ Kayıt sonrası her mesajı otomatik olarak doğru departmana yönlendirilir.
 | Bileşen | Maliyet |
 |---|---|
 | LINE Messaging API | Ücretsiz (200 mesaj/gün) |
-| OpenRouter (GPT-4o-mini) | ~300 THB/ay (~50 mesaj/gün) |
+| OpenRouter (Claude Sonnet 5, $2/$10 per 1M) | ~350–700 THB/ay (~50 mesaj/gün sınıflandırma) |
 | Google Gemini (OCR) | ~200 THB/ay (~1000 foto/ay) |
-| **Toplam** | **~500 THB/ay (~$15/ay)** |
+| **Toplam** | **~550–900 THB/ay (~$16–26/ay)** |
+
+> Maliyet artarsa `.env` → `LATO_AI_MODEL` ile daha ucuz modele tek satırda dönülür.
 
 ## LINE ↔ Telegram Köprüsü
 

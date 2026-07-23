@@ -1,24 +1,13 @@
+# Lato LINE Bot — personel ↔ Telegram köprüsü
+# NOT: lato-translator servisi buradan kaldırıldı — o servis ceviri-sistemi/docker/docker-compose.yml'de
+# tanımlı. (Önceki kopya, aynı container_name ile çakışıyor ve yanlış imajı çalıştırıyordu.)
 services:
-  lato-translator:
-    build: .
-    container_name: lato-translator
-    restart: always
-    volumes:
-      - ./data:/app/data
-    env_file:
-      - /root/.hermes/profiles/lato/.env
-    environment:
-      - HERMES_HOME=/root/.hermes/profiles/lato
-    networks:
-      - efloud-bot_default
-
   lato-line-bot:
     build: .
     container_name: lato-line-bot
     restart: always
-    command: ["python3", "line_bot.py"]
     volumes:
-      - ./data:/app/data
+      - ./data:/app/data          # line_staff.json kalıcı personel kaydı
     env_file:
       - /root/.hermes/profiles/lato/.env
     environment:

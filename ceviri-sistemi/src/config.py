@@ -34,7 +34,10 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 TRANSLATION_PROVIDER = "openrouter"   # openrouter | openai
 TRANSLATION_BASE_URL = "https://openrouter.ai/api/v1"
 TRANSLATION_API_KEY = OPENROUTER_API_KEY or OPENAI_API_KEY
-TRANSLATION_MODEL = "openai/gpt-4o-mini"  # OpenRouter model name
+# Tek model: Claude Sonnet 5. Öncelik claude CLI (abonelik — ücretsiz, translation_engine
+# içinde); bu API modeli sadece CLI yoksa fallback olarak kullanılır.
+_tm = os.environ.get("LATO_TRANSLATE_MODEL", os.environ.get("LATO_AI_MODEL", "claude-sonnet-5"))
+TRANSLATION_MODEL = _tm if "/" in _tm else f"anthropic/{_tm}"   # OpenRouter slug normalizasyonu
 
 # ── TTS ────────────────────────────────────────────────────────────
 ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")

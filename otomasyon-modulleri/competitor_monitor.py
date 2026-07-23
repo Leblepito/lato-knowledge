@@ -26,8 +26,10 @@ logger = logging.getLogger("lato-competitor")
 
 BOT_TOKEN = os.environ.get("TRANSLATE_BOT_TOKEN", os.environ.get("TELEGRAM_BOT_TOKEN", ""))
 TG_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
-OR_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-OR_MODEL = "openai/gpt-4o-mini"
+
+# AI: sadece Claude Sonnet 5 — abonelik (claude CLI) öncelikli, ücretsiz.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "telegram-bot"))
+from claude_client import ask_claude, ClaudeError  # noqa: E402
 
 # ── Rakip Oteller ──────────────────────────────────────────────────
 COMPETITORS = [
@@ -69,16 +71,15 @@ async def send_message(text: str, topic_id: int = TOPIC_PURCH) -> bool:
         logger.error(f"TG: {e}")
         return False
 
-# ── AI ─────────────────────────────────────────────────────────────
+# ── AI (Claude Sonnet 5 — abonelik/CLI öncelikli, ücretsiz) ────────
 async def ai_analyze(prompt: str) -> str:
     try:
-        async with httpx.AsyncClient(timeout=30) as c:
-            r = await c.post("https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {OR_KEY}"},
-                json={"model": OR_MODEL, "temperature": 0.4,
-                      "messages": [{"role": "system", "content": "Sen Phuket otel fiyatlama uzmanısın. Türkçe konuş."},
-                                   {"role": "user", "content": prompt}]})
-            return r.json()["choices"][0]["message"]["content"]
+        return (await ask_claude(
+            prompt, system="Sen Phuket otel fiyatlama uzmanısın. Türkçe konuş.",
+            timeout=120)).strip()
+    except ClaudeError as e:
+        logger.error(f"AI (Sonnet 5): {e}")
+        return ""
     except Exception as e:
         logger.error(f"AI: {e}")
         return ""
@@ -135,8 +136,9 @@ async def compare_prices():
 
     # Kendi ADR'lerimiz
     our_hotels = {h["slug"]: h for h in data.get("hotels", [])}
-    our_avg_adr = sum(h["adr"][month_idx] for h in data.get("hotels", [])
-                      if month_idx < len(h["adr"])) / max(len(data.get("hotels", [])), 1)
+    valid_adrs = [h["adr"][month_idx] for h in data.get("hotels", [])
+                  if month_idx < len(h.get("adr", []))]
+    our_avg_adr = sum(valid_adrs) / max(len(valid_adrs), 1)
 
     results = []
     for comp in COMPETITORS:

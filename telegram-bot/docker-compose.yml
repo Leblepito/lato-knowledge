@@ -1,0 +1,20 @@
+# Lato Telegram Bot — departman input işleyici (Sonnet 5, abonelik)
+# Önkoşul (host'ta bir kez): npm i -g @anthropic-ai/claude-code && claude setup-token
+services:
+  lato-telegram-bot:
+    build: .
+    container_name: lato-telegram-bot
+    restart: always
+    volumes:
+      - ~/.claude:/root/.claude              # abonelik kimliği (setup-token)
+      - /opt/lato-knowledge:/repo            # bilgi bankası (kayıtlar buraya yazılır)
+    environment:
+      - LATO_REPO_DIR=/repo
+    env_file:
+      - /root/.hermes/profiles/lato/.env
+    networks:
+      - efloud-bot_default
+
+networks:
+  efloud-bot_default:
+    external: true

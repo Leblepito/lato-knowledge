@@ -1,7 +1,10 @@
-# 🤖 Otel Otomasyon Motoru v2.0
+# 🤖 Otel Otomasyon Motoru v2.1
 
 > 10 modüllü gelişmiş otomasyon sistemi — Excel analizi sentezlenerek kuruldu.
 > Cron jobs: Hermes scheduler üzerinden otomatik çalışır.
+> **AI model**: sadece Claude Sonnet 5 — `claude` CLI + abonelik ile **ücretsiz**
+> (ortak istemci: `../telegram-bot/claude_client.py`, fallback: Anthropic/OpenRouter API).
+> Kurulum: [`../KURULUM.md`](../KURULUM.md)
 
 ## Modüller
 

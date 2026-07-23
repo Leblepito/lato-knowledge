@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 """
-Lato Otel Otomasyon — Günlük Bülten + TM30/WP Alert + Fatura OCR.
+Lato Otel Otomasyon v1 — Günlük Bülten + TM30/WP Alert (ESKİ SÜRÜM).
 
-Bu modül Hermes cron job olarak veya bağımsız daemon olarak çalışır.
-Excel'den okur (veya JSON cache'den), Telegram'a gönderir.
+⚠️ DEPRECATED: Bu modülün yerini `automation_engine.py` aldı (10 modül + AI öneri).
+Cron'larda `automation_engine.py briefing` kullanın. Bu dosya geriye dönük
+uyumluluk için tutulur; hotel_db.json v2 şemasıyla (aylık occupancy listesi) çalışır.
 
-Kullanım:
-  # Tek seferlik (cron)
+Kullanım (eski):
   python3 daily_briefing.py
-
-  # Daemon mode (event-driven)
-  python3 daily_briefing.py --daemon
 """
 import asyncio
 import json
@@ -83,10 +80,17 @@ async def daily_briefing():
     total_occ = 0
     total_rev = 0
 
+    month_idx = now_month - 1
     for hotel in data.get("hotels", []):
         rooms = hotel.get("rooms", 0)
         occ = hotel.get("occupancy", 0)
+        # v2 şema: occupancy 12 aylık liste — bu ayın değerini al
+        if isinstance(occ, list):
+            occ = occ[month_idx] if month_idx < len(occ) else 0.5
         rev = hotel.get("revenue_today", 0)
+        if not rev and isinstance(hotel.get("monthly_revenue"), list) \
+                and month_idx < len(hotel["monthly_revenue"]):
+            rev = hotel["monthly_revenue"][month_idx] / 30  # günlük tahmin
         total_rooms += rooms
         total_occ += occ * rooms
         total_rev += rev

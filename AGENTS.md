@@ -56,7 +56,7 @@ Skill yazımında [superpowers](https://github.com/obra/superpowers) ve [karpath
 
 - **PTT Web App**: Topic'teki buton → bas-konuş → canlı çeviri → bırak → gönder
 - **Voice Mesaj**: Telegram sesli mesaj → otomatik çeviri + sesli yanıt
-- **Pipeline**: Whisper STT → GPT-4o-mini → Edge TTS (+ElevenLabs hazır)
+- **Pipeline**: Whisper STT → Claude Sonnet 5 (LATO_TRANSLATE_MODEL ile değiştirilebilir) → Edge TTS (+ElevenLabs hazır)
 - **Ses klonlama**: MFCC tanıma + ElevenLabs IVC (altyapı hazır)
 - **Deploy**: Docker container (`lato-translator`), Caddy HTTPS proxy
 - **URL**: `translate.178-104-122-91.nip.io`
@@ -74,15 +74,18 @@ Excel analizine dayalı otomatik bildirim ve takip sistemleri.
 - **Fatura OCR**: Fatura fotoğrafı → OCR → mutabakat kontrolü
 - **Detay**: `otomasyon-modulleri/README.md`, `analizler/brook-6-otel-sistem-analizi.md`
 
-## LINE Bot (Personel İletişimi)
+## Departman Input Botu (Telegram-native)
 
-Tayland personeli LINE kullanır. Bu bot LINE → Telegram köprüsü kurar.
+Personel input dosyasını (md/txt/csv/foto/pdf) doğrudan departman topic'ine atar —
+**hangi bölüme atılırsa çıktı o departmana göre** hazırlanır (Sonnet 5).
 
-- **AI Sınıflandırma**: Her mesajı otomatik tip/departman/öncelik analizi
-- **Fatura OCR**: LINE'dan fatura foto → Gemini OCR → Telegram mutabakat
-- **Departman Routing**: Mesaj içeriğine göre doğru Telegram topic'e yönlendirme
-- **Çok Dilli**: TR/TH/EN otomatik çeviri
-- **Detay**: `line-bot/README.md`
+- **Topic → departman**: 130-135 eşlemesi, bağlam = README + dil paketi + şablon + spec
+- **Çıktı**: olay kaydı / envanter kartı / hesap / fatura mutabakatı / HACCP kontrol
+- **Kayıt**: üretilen dosya `departmanlar/<slug>/...` altına otomatik yazılır
+- **Fatura OCR**: foto → Sonnet 5 vision (Gemini kaldırıldı)
+- **Detay**: `telegram-bot/README.md`
+
+~~LINE Bot köprüsü~~ → **DEPRECATED (2026-07-23)**: her şey Telegram'da; `line-bot/` arşiv.
 
 ## Bilgi Bankası
 
@@ -94,14 +97,15 @@ lato-knowledge/
 │   ├── olaylar/YYYY/AY/GG-konu.md
 │   ├── hesaplar/YYYY/AY/<konu>.md
 │   └── envanter/<ekipman>.md
+├── telegram-bot/              → 🆕 departman input botu (ANA SİSTEM)
+│   ├── lato_telegram_bot.py   → topic→departman, dosya→çıktı, otomatik kayıt
+│   └── claude_client.py       → Sonnet 5 istemcisi (CLI/abonelik öncelikli)
 ├── ceviri-sistemi/            → çeviri botu kaynak kodu
 │   ├── src/                   → Python modülleri
 │   ├── docker/                → Dockerfile, compose, requirements
 │   ├── rehber/                → ses kaydı rehberi (TR/EN/TH)
 │   └── docs/                  → deploy script, caddy config
-├── line-bot/                  → LINE Messaging API bot (personel)
-│   ├── src/line_bot.py        → webhook + AI sınıflandırma + OCR
-│   └── Dockerfile
+├── line-bot/                  → ⚠️ DEPRECATED — arşiv (Telegram-native'e geçildi)
 ├── otomasyon-modulleri/       → otel otomasyon botları
 │   ├── daily_briefing.py      → günlük bülten + WP/VAT/SSO alert
 │   └── data/hotel_db.json     → 7 otel veritabanı (Excel export)
@@ -109,6 +113,16 @@ lato-knowledge/
 │   └── brook-6-otel-sistem-analizi.md → 22 sheet analiz + yol haritası
 └── NOTION-CROSSREF.md
 ```
+
+## AI Model Politikası
+
+- **Tek model: Claude Sonnet 5** — başka AI modeli YOK (GPT/Gemini kaldırıldı)
+- **Ücretsiz çalışma**: `claude` CLI + Claude Pro/Max aboneliği (`claude setup-token`) —
+  token faturası çıkmaz, plan kotası kullanılır
+- Fallback sırası (hepsi yine Sonnet 5): CLI → Anthropic API → OpenRouter (key varsa)
+- Tek değişim noktası: `.env` → `LATO_AI_MODEL` (varsayılan `claude-sonnet-5`)
+- Kapsam: departman input botu, otomasyon modülleri, rakip izleme, çeviri motoru
+- Ortak istemci: `telegram-bot/claude_client.py`
 
 ## Kurallar
 
