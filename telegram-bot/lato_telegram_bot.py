@@ -219,8 +219,10 @@ Kurallar:
 "yol" mutlaka departmanlar/ ile başlamalı."""
 
 # ── Telegram API ───────────────────────────────────────────────────
-async def tg(method: str, timeout: int = 65, **params):
-    async with httpx.AsyncClient(timeout=timeout) as c:
+async def tg(method: str, _http_timeout: int = 65, **params):
+    """_http_timeout: httpx istemci zaman aşımı (isim çakışmasın diye ayrı) —
+    Telegram body'sine 'timeout' (long-poll) göndermek istersen **params ile geç."""
+    async with httpx.AsyncClient(timeout=_http_timeout) as c:
         r = await c.post(f"{TG_API}/{method}", json=params)
         data = r.json()
         if not data.get("ok"):
@@ -355,7 +357,7 @@ async def process_message(msg: dict, bot_username: str):
         instruction = instruction[5:].strip()
 
     logger.info(f"📥 {dept['name']} | {user} | dosya={len(files)+len(inline_docs)} | '{instruction[:50]}'")
-    await tg("sendChatAction", chat_id=GROUP_ID, message_thread_id=thread_id, action="typing", timeout=10)
+    await tg("sendChatAction", chat_id=GROUP_ID, message_thread_id=thread_id, action="typing", _http_timeout=10)
 
     # Prompt kur
     prompt_parts = [
@@ -477,7 +479,7 @@ async def main():
 
     ensure_repo()  # Railway/ephemeral disk: git push-back için gerçek klon garantile
 
-    me = await tg("getMe", timeout=15)
+    me = await tg("getMe", _http_timeout=15)
     bot_username = me.get("result", {}).get("username", "Latotry_bot")
     logger.info(f"🚀 Lato Telegram Bot aktif — @{bot_username} | model={MODEL} | "
                 f"repo={REPO_DIR} | auto_save={AUTO_SAVE} | git_push={GIT_PUSH}")
@@ -502,8 +504,8 @@ async def main():
 
     while True:
         try:
-            data = await tg("getUpdates", offset=offset, timeout=65,
-                            **{"allowed_updates": ["message"], "timeout": 50})
+            data = await tg("getUpdates", offset=offset, timeout=50,
+                            allowed_updates=["message"], _http_timeout=65)
             for upd in data.get("result", []):
                 offset = upd["update_id"] + 1
                 save_offset(offset)
